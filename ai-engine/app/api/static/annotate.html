@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Annotation Tool</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#f6f7f9;--fg:#1c2024;--card:#fff;--bd:#dcdfe4;--ac:#3b5bdb;--ok:#2b8a3e;--warn:#e67700;--bad:#c92a2a;--mut:#6b7280}
+@media(prefers-color-scheme:dark){:root{--bg:#14161a;--fg:#e6e8eb;--card:#1c1f25;--bd:#333842;--ac:#748ffc;--ok:#69db7c;--warn:#ffa94d;--bad:#ff8787;--mut:#9aa0ab}}
+*{box-sizing:border-box}body{margin:0;font:14px system-ui;background:var(--bg);color:var(--fg)}
+header{display:flex;gap:10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--bd);background:var(--card);flex-wrap:wrap}
+main{display:grid;grid-template-columns:1fr 400px;height:calc(100vh - 96px)}
+@media(max-width:900px){main{grid-template-columns:1fr;height:auto}}
+#bar{padding:6px 14px;border-bottom:1px solid var(--bd);background:var(--card);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px}
+#list{overflow:auto;padding:8px}
+.msg{padding:6px 10px;border:1px solid var(--bd);border-radius:6px;margin:4px 0;background:var(--card);cursor:pointer;border-left:4px solid var(--bd)}
+.msg.sel{outline:2px solid var(--ac)}.msg.done{opacity:.55;border-left-color:var(--ok)}.msg.l-annotate{border-left-color:var(--bad)}.msg.l-review{border-left-color:var(--warn)}
+.meta{font-size:12px;color:var(--mut)}.chip{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;background:var(--bd);margin-right:4px}
+.chip.dbl{background:var(--ac);color:#fff}
+aside{border-left:1px solid var(--bd);padding:12px;overflow:auto;background:var(--card)}
+label{display:block;margin:8px 0 2px;font-size:12px;color:var(--mut)}
+input,select,button{width:100%;padding:6px;font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:5px}
+button{background:var(--ac);color:#fff;border:0;cursor:pointer;margin-top:8px}button.sec{background:var(--bd);color:var(--fg)}
+.row{display:flex;gap:8px}.row>*{flex:1}.chk{display:flex;gap:6px;align-items:center;margin-top:8px}.chk input{width:auto}
+.ctx{color:var(--mut);font-size:12px;padding:2px 0}.cur{font-size:15px;padding:8px;border-radius:6px;background:var(--bg);margin:6px 0;white-space:pre-wrap}
+.prop{border:1px dashed var(--bd);border-radius:6px;padding:8px;margin:8px 0;font-size:12px}
+mark{background:#ffe066;color:#000}.ent{font-size:12px;margin:2px 0}.hint{font-size:11px;color:var(--mut)}
+</style></head><body>
+<header>
+  <b>Annotation Tool</b>
+  <input id="reviewer" placeholder="Your name (required)" style="width:170px">
+  <label style="margin:0">Batch on server <select id="serverBatch" style="width:auto"><option value="">—</option></select></label>
+  <label style="margin:0">or file (.json) <input type="file" id="batch" accept=".json" style="width:auto;display:inline"></label>
+  <label style="margin:0">or raw chat (.txt) <input type="file" id="file" accept=".txt" style="width:auto;display:inline"></label>
+  <span id="stat" class="meta"></span>
+</header>
+<div id="bar">
+  <span id="progress"><b>0</b> / 0 done</span>
+  Show: <select id="fLane" style="width:auto"><option value="">all lanes</option><option value="annotate">annotate (&lt;70%)</option><option value="review">review (70-95%)</option><option value="auto_accept">audit sample</option></select>
+  <select id="fCat" style="width:auto"><option value="">all proposed categories</option></select>
+  <label style="margin:0"><input type="checkbox" id="fTodo" style="width:auto" checked> only not done</label>
+  <label style="margin:0"><input type="checkbox" id="fDouble" style="width:auto"> only double-annotation sample</label>
+  Order: <select id="order" style="width:auto"><option value="rank">least certain first</option><option value="chat">chat order</option></select>
+  <label style="margin:0" title="Second annotator: hide the proposal so the label is independent"><input type="checkbox" id="blind" style="width:auto"> blind (hide proposals)</label>
+  <span class="hint">Ctrl+Enter = save &amp; next · Alt+↑/↓ = move</span>
+</div>
+<main>
+  <div id="list"></div>
+  <aside>
+    <div id="sel" class="meta">Load a batch, then select a message.</div>
+    <div id="propbox"></div>
+    <label>Category</label><select id="category"></select>
+    <label>Task status</label><select id="status"><option value="">—</option></select>
+    <div class="row"><div><label>Assignee</label><input id="assignee"></div><div><label>Deadline text</label><input id="deadline"></div></div>
+    <label>Task key (links messages of one task, e.g. T3)</label><input id="taskKey">
+    <label>Conflicts with message id</label><input id="conflict">
+    <div class="chk"><input type="checkbox" id="cp"><span>Client pending</span></div>
+    <div class="chk"><input type="checkbox" id="risk"><span>Risk</span></div>
+    <label>Entity (select text in the message above, then pick type)</label>
+    <div class="row"><select id="entType"></select><button id="addEnt" class="sec" style="margin:0">Add</button></div>
+    <div id="ents"></div>
+    <div class="row"><button id="save">Save &amp; next</button><button id="skip" class="sec">Skip</button></div>
+    <div id="msg" class="hint"></div>
+  </aside>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let items=[],cur=null,ents=[],done=new Set(),skipped=new Set(),project='',schema=null;
+fetch('/ai/annotation/schema').then(r=>r.json()).then(s=>{
+  schema=s;
+  $('category').innerHTML=s.categories.map(c=>`<option>${c}</option>`).join('');
+  $('status').innerHTML+=s.statuses.map(c=>`<option>${c}</option>`).join('');
+  $('entType').innerHTML=s.entityTypes.map(c=>`<option>${c}</option>`).join('');
+  $('fCat').innerHTML+=s.categories.map(c=>`<option>${c}</option>`).join('');
+});
+const load=async(its,proj)=>{
+  items=its;project=proj;
+  const a=await (await fetch('/ai/annotation?project_id='+encodeURIComponent(proj))).json();
+  const mine=$('reviewer').value.trim();
+  done=new Set(a.filter(x=>!mine||x.reviewer===mine).map(x=>x.message_id));
+  render();
+};
+fetch('/ai/annotation/batches').then(r=>r.json()).then(j=>{$('serverBatch').innerHTML+=j.items.map(n=>`<option>${esc(n)}</option>`).join('')});
+const openBatch=async j=>{
+  $('stat').textContent=`${j.meta.in_queue} in queue · ${j.meta.double_annotation} double · roles: ${Object.entries(j.meta.roles_used).map(([k,v])=>k.replace('Person ','')+'='+v.toLowerCase()).join(' ')}`;
+  await load(j.items,j.meta.project_id);
+};
+$('batch').onchange=async e=>{const f=e.target.files[0];if(f)await openBatch(JSON.parse(await f.text()));};
+$('serverBatch').onchange=async e=>{
+  if(!e.target.value)return;
+  if(!$('reviewer').value.trim()){$('msg').textContent='Enter your name first.';e.target.value='';return;}
+  const r=await fetch('/ai/annotation/batches/'+encodeURIComponent(e.target.value));
+  if(!r.ok){$('stat').textContent='Could not load batch.';return;}
+  await openBatch(await r.json());
+};
+$('file').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  const fd=new FormData();fd.append('file',f);$('stat').textContent='Parsing…';
+  const r=await fetch('/ai/parse',{method:'POST',body:fd});
+  if(!r.ok){$('stat').textContent=(await r.json()).detail;return;}
+  const j=await r.json();
+  const its=j.messages.filter(m=>!m.isSystemMessage&&!m.isMedia).map((m,i)=>({message_id:m.messageId,index:i,timestamp:m.timestamp,sender:m.senderName,message:m.message,context_before:[],context_after:[],proposal:null,lane:'annotate',double:false}));
+  await load(its,'raw-'+j.fingerprint.slice(0,10));
+  $('stat').textContent=`${its.length} messages (no proposals) · date order ${j.report.dateOrder}${j.report.dateOrderAmbiguous?' (ambiguous!)':''}`;
+};
+['fLane','fCat','fTodo','fDouble','order','blind'].forEach(id=>$(id).onchange=()=>{render();if(id==='blind'&&cur)pick(cur)});
+function visible(){
+  let v=items.filter(it=>(!$('fLane').value||it.lane===$('fLane').value)&&(!$('fCat').value||it.proposal?.category===$('fCat').value)
+    &&(!$('fTodo').checked||!done.has(it.message_id))&&(!$('fDouble').checked||it.double));
+  if($('order').value==='chat')v=v.slice().sort((a,b)=>a.index-b.index);
+  return v;
+}
+function render(){
+  const v=visible();
+  $('progress').innerHTML=`<b>${done.size}</b> / ${items.length} done`;
+  $('list').innerHTML=v.map(it=>{
+    const p=it.proposal;
+    return `<div class="msg l-${it.lane} ${done.has(it.message_id)?'done':''} ${cur&&cur.message_id===it.message_id?'sel':''}" data-id="${esc(it.message_id)}">
+     <div class="meta">${esc((it.timestamp||'').replace('T',' ').slice(0,16))} · ${esc(it.sender)}${it.double?' <span class="chip dbl">double</span>':''}${skipped.has(it.message_id)?' <span class="chip">skipped</span>':''}
+      ${p&&!$('blind').checked?`<span class="chip">${esc(p.category)} ${Math.round(p.confidence*100)}%</span>`:''}</div><div>${esc(it.message)}</div></div>`}).join('')||'<div class="meta" style="padding:20px">Nothing to show with these filters.</div>';
+  document.querySelectorAll('.msg').forEach(el=>el.onclick=()=>pick(items.find(i=>i.message_id===el.dataset.id)));
+}
+function fill(p){
+  $('category').value=p?.category||'GENERAL';$('status').value=p?.status||'';$('assignee').value=p?.assignee||'';
+  $('deadline').value=p?.deadline_text||'';$('taskKey').value=p?.task_key||'';$('conflict').value='';
+  $('cp').checked=!!p?.client_pending;$('risk').checked=!!p?.risk;
+}
+function pick(it){
+  cur=it;ents=[];renderEnts();
+  const blind=$('blind').checked&&it.double||$('blind').checked, p=blind?null:it.proposal;
+  const ctx=a=>(a||[]).map(c=>`<div class="ctx"><b>${esc(c.sender)}:</b> ${esc(c.text)}</div>`).join('');
+  $('sel').innerHTML=`${ctx(it.context_before)}<div class="cur"><b>${esc(it.sender)}</b>: <span id="txt">${esc(it.message)}</span></div>${ctx(it.context_after)}<div class="meta">${esc(it.message_id)}</div>`;
+  $('propbox').innerHTML=p?`<div class="prop"><b>Proposal</b>: ${esc(p.category)} (${Math.round(p.confidence*100)}%) · ${esc(p.language)} · sender role ${esc(p.sender_role)}
+    ${(p.alternatives||[]).map(a=>`<div class="hint">or ${esc(a.category)} ${Math.round(a.confidence*100)}%</div>`).join('')}
+    <div class="hint">Rules, not ground truth. Correct anything that is wrong; saving as-is counts as "accepted".</div></div>`:(blind?'<div class="prop">Blind mode: proposal hidden.</div>':'');
+  fill(p);render();
+  document.querySelector('.msg.sel')?.scrollIntoView({block:'nearest'});
+}
+function renderEnts(){$('ents').innerHTML=ents.map((e,i)=>`<div class="ent"><mark>${esc(e.text)}</mark> → ${e.label} <a href="#" data-d="${i}">x</a></div>`).join('');
+  document.querySelectorAll('[data-d]').forEach(a=>a.onclick=ev=>{ev.preventDefault();ents.splice(+a.dataset.d,1);renderEnts();});}
+$('addEnt').onclick=()=>{
+  if(!cur)return;const t=getSelection().toString();if(!t)return;
+  const start=cur.message.indexOf(t);if(start<0){$('msg').textContent='Selection must be inside the message text.';return;}
+  ents.push({start,end:start+t.length,label:$('entType').value,text:t});renderEnts();};
+function next(){const v=visible();const i=v.findIndex(x=>x.message_id===cur?.message_id);const n=v.find((x,j)=>j>i&&!done.has(x.message_id))||v.find(x=>!done.has(x.message_id));if(n)pick(n);else render();}
+async function save(){
+  const rev=$('reviewer').value.trim();
+  if(!cur||!rev||!project){$('msg').textContent='Need your name, a loaded batch and a selected message.';return;}
+  const body={project_id:project,message_id:cur.message_id,message:cur.message,category:$('category').value,entities:ents,
+    status:$('status').value||null,assignee:$('assignee').value||null,deadline_text:$('deadline').value||null,task_key:$('taskKey').value||null,
+    client_pending:$('cp').checked,risk:$('risk').checked,conflict_with:$('conflict').value||null,reviewer:rev,
+    proposal:$('blind').checked?null:(cur.proposal?{category:cur.proposal.category,confidence:cur.proposal.confidence}:null)};
+  const r=await fetch('/ai/annotation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.ok){done.add(cur.message_id);skipped.delete(cur.message_id);$('msg').textContent='Saved ✓';next();}
+  else $('msg').textContent='Error: '+JSON.stringify((await r.json()).detail);
+}
+$('save').onclick=save;
+$('skip').onclick=()=>{if(cur){skipped.add(cur.message_id);next();}};
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey&&e.key==='Enter'){e.preventDefault();save();}
+  if(e.altKey&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();const v=visible();const i=v.findIndex(x=>x.message_id===cur?.message_id);const n=v[i+(e.key==='ArrowDown'?1:-1)];if(n)pick(n);}
+});
+</script></body></html>

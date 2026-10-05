@@ -1,0 +1,12 @@
+{
+  "note": "Written by the developer BEFORE running the engine on it; phrasing intentionally not tuned to the rules.",
+  "tasks": [
+    {"keywords": ["crm"], "assignee": "Divya", "status": "COMPLETED"},
+    {"keywords": ["invoice", "excel"], "assignee": "Tarun", "status": "COMPLETED"}
+  ],
+  "client_pending": [
+    {"keywords": ["token"], "status": "RESOLVED"}
+  ],
+  "requirement_changes": [],
+  "bugs": []
+}

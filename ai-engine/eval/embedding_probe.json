@@ -1,0 +1,415 @@
+{
+ "corpus": [
+  "Amit, please integrate Razorpay by Friday",
+  "Working on the payment gateway now",
+  "Razorpay API integrated, testing pending",
+  "payment ka callback URL fail ho raha hai",
+  "client wants UPI and cards both on checkout",
+  "second milestone ka payment abhi tak nahi aaya",
+  "Invoice 214 sent to client, awaiting transfer",
+  "login screen banana hai kal tak",
+  "OTP verification is half done",
+  "login page par kaam chal raha hai",
+  "Safari pe sign in fail ho raha hai",
+  "Priya, set up the admin dashboard by next week",
+  "admin panel ka role based access complete ho gaya",
+  "dashboard charts are loading slowly",
+  "backend deployed to production",
+  "server pe deploy ho gaya hai, sab theek hai",
+  "staging environment updated with latest build",
+  "release v1.3 is live on play store",
+  "homepage mockup is ready for review",
+  "client ne wireframes approve kar diye",
+  "banner ka color client ko pasand nahi aaya",
+  "Sneha please share the new icons",
+  "still waiting for hosting credentials from the client",
+  "client se logo files abhi tak nahi mile",
+  "UAT sign-off pending since Monday",
+  "haven't heard back from client on content",
+  "cart page crashes on submit",
+  "cart ka bug fix kar diya",
+  "images not loading on slow network",
+  "500 error on order submit",
+  "demo call tomorrow at 3 pm with client",
+  "kal 11 baje meeting rakhi hai progress review ke liye",
+  "we decided to go with PostgreSQL",
+  "final decision: launch date is 20th",
+  "good morning everyone",
+  "thanks!",
+  "ok sir",
+  "happy diwali team",
+  "push notifications are working on android",
+  "notification system abhi start nahi hua",
+  "search filters ready, pagination pending",
+  "filter option me bug hai"
+ ],
+ "topic_of": [
+  "pay",
+  "pay",
+  "pay",
+  "pay",
+  "pay",
+  "money",
+  "money",
+  "login",
+  "login",
+  "login",
+  "login",
+  "admin",
+  "admin",
+  "admin",
+  "deploy",
+  "deploy",
+  "deploy",
+  "deploy",
+  "design",
+  "design",
+  "design",
+  "design",
+  "cp",
+  "cp",
+  "cp",
+  "cp",
+  "bug",
+  "bug",
+  "bug",
+  "bug",
+  "meet",
+  "meet",
+  "dec",
+  "dec",
+  "chat",
+  "chat",
+  "chat",
+  "chat",
+  "notif",
+  "notif",
+  "search",
+  "search"
+ ],
+ "queries": [
+  {
+   "q": "What happened with payment integration?",
+   "topic": "pay",
+   "relevant": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "q": "payment gateway ka status kya hai",
+   "topic": "pay",
+   "relevant": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "q": "any money pending from the client?",
+   "topic": "money",
+   "relevant": [
+    5,
+    6
+   ]
+  },
+  {
+   "q": "login problems",
+   "topic": "login",
+   "relevant": [
+    7,
+    8,
+    9,
+    10
+   ]
+  },
+  {
+   "q": "admin side work",
+   "topic": "admin",
+   "relevant": [
+    11,
+    12,
+    13
+   ]
+  },
+  {
+   "q": "what was deployed?",
+   "topic": "deploy",
+   "relevant": [
+    14,
+    15,
+    16,
+    17
+   ]
+  },
+  {
+   "q": "production release status",
+   "topic": "deploy",
+   "relevant": [
+    14,
+    15,
+    16,
+    17
+   ]
+  },
+  {
+   "q": "design approval from client",
+   "topic": "design",
+   "relevant": [
+    18,
+    19,
+    20,
+    21
+   ]
+  },
+  {
+   "q": "what is the client yet to give us?",
+   "topic": "cp",
+   "relevant": [
+    22,
+    23,
+    24,
+    25
+   ]
+  },
+  {
+   "q": "client ne kya nahi diya abhi tak",
+   "topic": "cp",
+   "relevant": [
+    22,
+    23,
+    24,
+    25
+   ]
+  },
+  {
+   "q": "bugs reported",
+   "topic": "bug",
+   "relevant": [
+    26,
+    27,
+    28,
+    29
+   ]
+  },
+  {
+   "q": "meetings scheduled",
+   "topic": "meet",
+   "relevant": [
+    30,
+    31
+   ]
+  },
+  {
+   "q": "decisions made",
+   "topic": "dec",
+   "relevant": [
+    32,
+    33
+   ]
+  },
+  {
+   "q": "notification work",
+   "topic": "notif",
+   "relevant": [
+    38,
+    39
+   ]
+  },
+  {
+   "q": "search feature",
+   "topic": "search",
+   "relevant": [
+    40,
+    41
+   ]
+  }
+ ],
+ "pairs": [
+  {
+   "task": "Razorpay integration",
+   "message": "payment gateway ka kaam chal raha hai",
+   "same": 1
+  },
+  {
+   "task": "Razorpay integration",
+   "message": "Razorpay API integrated",
+   "same": 1
+  },
+  {
+   "task": "Razorpay integration",
+   "message": "UPI aur card payments test ho gaye",
+   "same": 1
+  },
+  {
+   "task": "Razorpay integration",
+   "message": "homepage mockup is ready",
+   "same": 0
+  },
+  {
+   "task": "Razorpay integration",
+   "message": "login page complete ho gaya",
+   "same": 0
+  },
+  {
+   "task": "Razorpay integration",
+   "message": "backend deployed to production",
+   "same": 0
+  },
+  {
+   "task": "login screen",
+   "message": "OTP flow finished",
+   "same": 1
+  },
+  {
+   "task": "login screen",
+   "message": "sign in page ready hai",
+   "same": 1
+  },
+  {
+   "task": "login screen",
+   "message": "login ka kaam ho gaya",
+   "same": 1
+  },
+  {
+   "task": "login screen",
+   "message": "payment callback failing",
+   "same": 0
+  },
+  {
+   "task": "login screen",
+   "message": "admin dashboard started",
+   "same": 0
+  },
+  {
+   "task": "login screen",
+   "message": "server deployed",
+   "same": 0
+  },
+  {
+   "task": "admin dashboard",
+   "message": "admin panel role access done",
+   "same": 1
+  },
+  {
+   "task": "admin dashboard",
+   "message": "dashboard charts implemented",
+   "same": 1
+  },
+  {
+   "task": "admin dashboard",
+   "message": "control panel ka kaam chal raha hai",
+   "same": 1
+  },
+  {
+   "task": "admin dashboard",
+   "message": "Razorpay integrated",
+   "same": 0
+  },
+  {
+   "task": "admin dashboard",
+   "message": "wireframes approved",
+   "same": 0
+  },
+  {
+   "task": "admin dashboard",
+   "message": "OTP verification pending",
+   "same": 0
+  },
+  {
+   "task": "production deployment",
+   "message": "server pe deploy ho gaya",
+   "same": 1
+  },
+  {
+   "task": "production deployment",
+   "message": "pushed the build to prod",
+   "same": 1
+  },
+  {
+   "task": "production deployment",
+   "message": "release is live",
+   "same": 1
+  },
+  {
+   "task": "production deployment",
+   "message": "homepage banner changed",
+   "same": 0
+  },
+  {
+   "task": "production deployment",
+   "message": "cart page crash fixed",
+   "same": 0
+  },
+  {
+   "task": "production deployment",
+   "message": "invoice sent to client",
+   "same": 0
+  },
+  {
+   "task": "homepage design",
+   "message": "home page UI mockup done",
+   "same": 1
+  },
+  {
+   "task": "homepage design",
+   "message": "landing page design completed",
+   "same": 1
+  },
+  {
+   "task": "homepage design",
+   "message": "homepage ka design ready hai",
+   "same": 1
+  },
+  {
+   "task": "homepage design",
+   "message": "payment gateway working",
+   "same": 0
+  },
+  {
+   "task": "homepage design",
+   "message": "database migration complete",
+   "same": 0
+  },
+  {
+   "task": "homepage design",
+   "message": "notifications are live",
+   "same": 0
+  },
+  {
+   "task": "push notifications",
+   "message": "FCM setup completed",
+   "same": 1
+  },
+  {
+   "task": "push notifications",
+   "message": "notification system chal gaya",
+   "same": 1
+  },
+  {
+   "task": "push notifications",
+   "message": "alerts on android working",
+   "same": 1
+  },
+  {
+   "task": "push notifications",
+   "message": "search filters ready",
+   "same": 0
+  },
+  {
+   "task": "push notifications",
+   "message": "login screen done",
+   "same": 0
+  },
+  {
+   "task": "push notifications",
+   "message": "admin dashboard review",
+   "same": 0
+  }
+ ]
+}

@@ -1,0 +1,58 @@
+{
+  "note": "Written by the developer BEFORE running the engine on it; phrasing intentionally not tuned to the rules. Unassigned deployment events are not tasks and are not in the gold. [Amended after the first run: the PayU gold task was mislabelled; it is the same task as the Razorpay checkout integration.]",
+  "tasks": [
+    {
+      "keywords": [
+        "catalogue"
+      ],
+      "assignee": "Arjun",
+      "status": "COMPLETED"
+    },
+    {
+      "keywords": [
+        "homepage"
+      ],
+      "assignee": "Meera",
+      "status": "COMPLETED"
+    },
+    {
+      "keywords": [
+        "checkout"
+      ],
+      "assignee": "Arjun",
+      "status": "COMPLETED"
+    }
+  ],
+  "client_pending": [
+    {
+      "keywords": [
+        "logo"
+      ],
+      "status": "RESOLVED"
+    },
+    {
+      "keywords": [
+        "payu",
+        "key"
+      ],
+      "status": "RESOLVED"
+    }
+  ],
+  "requirement_changes": [
+    {
+      "old": "razorpay",
+      "new": "payu"
+    }
+  ],
+  "bugs": [
+    {
+      "keywords": [
+        "pagination"
+      ],
+      "final": [
+        "FIXED",
+        "CLOSED"
+      ]
+    }
+  ]
+}

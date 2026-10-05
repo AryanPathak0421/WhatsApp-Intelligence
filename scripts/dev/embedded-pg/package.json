@@ -1,0 +1,11 @@
+{
+  "name": "embedded-pg-dev",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Development-only embedded PostgreSQL for machines without Docker",
+  "type": "module",
+  "dependencies": {
+    "embedded-postgres": "^18.4.0-beta.17",
+    "pg": "^8.23.1"
+  }
+}

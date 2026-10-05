@@ -1,0 +1,98 @@
+# NOTE: written in Phase 12 and NOT yet executed on GitHub (it was authored on a machine without CI access); expect to fix small issues on first run.
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  ai-engine:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: ai-engine } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: ai-engine/requirements*.txt }
+      - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q          # includes parser fuzz + ReDoS tests; the MiniLM linker test skips when the model is not cached
+      - run: python -m bench.unseen_eval  # prints accuracy on the hand-written unseen chats (informational, not a gate)
+
+  backend:
+    runs-on: ubuntu-latest
+    needs: ai-engine
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env: { POSTGRES_USER: wa, POSTGRES_PASSWORD: ci_pw, POSTGRES_DB: wa_intel_test, POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8" }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U wa" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+    env:
+      TEST_DATABASE_URL: postgresql://wa:ci_pw@localhost:5432/wa_intel_test
+      TEST_SKIP_MIGRATE: "1"
+      TEST_REDIS_URL: redis://localhost:6379
+      AI_PYTHON: ${{ github.workspace }}/ai-engine/.venv/bin/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: AI engine virtualenv (the backend tests start the real engine)
+        working-directory: ai-engine
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+          .venv/bin/pip install -r requirements.txt
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: backend/package-lock.json }
+      - working-directory: backend
+        run: |
+          npm ci
+          DATABASE_URL=$TEST_DATABASE_URL npx prisma migrate deploy
+          npx tsc --noEmit
+          npx vitest run
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npx tsc -b --noEmit
+      - run: npx vitest run
+      - run: npx vite build
+
+  ops:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: ci_pw }
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready" --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: compose file + script syntax
+        run: bash scripts/check-compose.sh
+      - name: backup / restore round trip
+        env: { PGHOST: localhost, PGPORT: "5432", PGUSER: postgres, PGPASSWORD: ci_pw }
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-16
+          bash scripts/test-backup-restore.sh
+      - name: nginx config syntax
+        run: |
+          mkdir -p /tmp/certs && openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=localhost" -keyout /tmp/certs/privkey.pem -out /tmp/certs/fullchain.pem
+          docker run --rm --add-host backend:127.0.0.1 -v $PWD/deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro -v $PWD/deploy/nginx/proxy_params:/etc/nginx/proxy_params:ro -v /tmp/certs:/etc/nginx/certs:ro nginx:1.27-alpine nginx -t
+
+  audit:
+    runs-on: ubuntu-latest
+    continue-on-error: true      # advisory: known low-risk findings are listed in docs/PHASE11_TESTING_BENCHMARKS.md
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd backend && npm audit --omit=dev
+      - run: cd frontend && npm audit --omit=dev

@@ -1,0 +1,14 @@
+{
+  "note": "TRUE HOLDOUT: written after the rule fixes, run once, never tuned on.",
+  "tasks": [
+    {"keywords": ["slot"], "assignee": "Isha", "status": "COMPLETED"},
+    {"keywords": ["booking screen"], "assignee": "Tushar", "status": "TODO"},
+    {"keywords": ["reminder"], "assignee": "Tushar", "status": "COMPLETED"}
+  ],
+  "client_pending": [
+    {"keywords": ["fee"], "status": "RESOLVED"}
+  ],
+  "requirement_changes": [{"old": "sms", "new": "whatsapp"}],
+  "bugs": [{"keywords": ["double booking"], "final": ["FIXED", "CLOSED"]}],
+  "conflicts": 1
+}

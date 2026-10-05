@@ -1,0 +1,27 @@
+[02/05/2026, 08:55:12] ‎Messages and calls are end-to-end encrypted. No one outside of this chat, not even WhatsApp, can read or listen to them.
+[02/05/2026, 09:01:40] Dev Lead Karthik: guys CRM integration for BrightMart - need an owner
+[02/05/2026, 09:02:55] Divya: I can take it
+[02/05/2026, 09:03:10] Dev Lead Karthik: ok Divya it's yours, ETA end of next week
+[02/05/2026, 09:20:00] Anil (BrightMart): Also please remember we need the invoice export in Excel,
+not just PDF. Finance team insists.
+[02/05/2026, 09:22:30] Dev Lead Karthik: Got it Anil.
+[02/05/2026, 09:23:01] ‎image omitted
+[02/05/2026, 09:30:47] Sales | Pooja: FYI client approved the quotation yesterday, PO will follow
+[02/05/2026, 11:00:00] Divya: Karthik which CRM are we integrating with, salesforce or zoho?
+[02/05/2026, 11:05:19] Anil (BrightMart): Zoho
+[02/05/2026, 11:06:00] Dev Lead Karthik: Zoho then.
+[02/05/2026, 02:10:00 PM] Divya: Zoho API token not working, getting 401
+[02/05/2026, 02:15:30 PM] Dev Lead Karthik: Anil can you regenerate the token and share?
+[02/05/2026, 02:40:00 PM] This message was deleted
+[03/05/2026, 10:00:00 AM] Anil (BrightMart): Token shared on mail
+[03/05/2026, 10:30:00 AM] Divya: connected, contacts sync is running
+[03/05/2026, 05:00:00 PM] Divya: Sync done for 12k contacts 🎉
+[04/05/2026, 09:00:00 AM] Dev Lead Karthik: Tarun, invoice export to excel pls - by Wednesday
+[04/05/2026, 09:05:00 AM] Tarun: will do
+[04/05/2026, 06:00:00 PM] Tarun: working on it, formatting the sheet headers
+[05/05/2026, 11:00:00 AM] Sales | Pooja: Client says they havent received the PO yet from their side, delayed
+[05/05/2026, 03:00:00 PM] Tarun: excel export finished
+[05/05/2026, 03:30:00 PM] Anil (BrightMart): The excel export is missing the GST column
+[05/05/2026, 03:45:00 PM] Tarun: oh right, adding GST now
+[06/05/2026, 10:00:00 AM] Tarun: GST column added, pushed to staging
+[06/05/2026, 10:30:00 AM] Anil (BrightMart): Perfect thanks

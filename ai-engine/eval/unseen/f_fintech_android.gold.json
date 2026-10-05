@@ -1,0 +1,14 @@
+{
+  "note": "FRESH HOLDOUT #2: written after round-2 rule fixes had been designed; run once, never tuned on.",
+  "tasks": [
+    {"keywords": ["upload"], "assignee": "Bhavna", "status": "COMPLETED"},
+    {"keywords": ["verification"], "assignee": "Ajay", "status": "COMPLETED"},
+    {"keywords": ["retry"], "assignee": "Ajay", "status": "TODO"}
+  ],
+  "client_pending": [
+    {"keywords": ["credentials"], "status": "RESOLVED"}
+  ],
+  "requirement_changes": [],
+  "bugs": [{"keywords": ["aadhaar"], "final": ["FIXED", "CLOSED"]}],
+  "conflicts": 0
+}

@@ -1,0 +1,34 @@
+[12/03/2026, 9:02:11 AM] Priya (PM): Morning all. Kicking off the shop redesign. Demo with Mr Kapoor is on the 24th.
+[12/03/2026, 9:05:40 AM] Priya (PM): @Arjun can you build the product catalogue API this week? Needed before the demo.
+[12/03/2026, 9:07:02 AM] Arjun: sure, starting today
+[12/03/2026, 9:10:15 AM] Priya (PM): Meera, please do the new homepage layout from the Figma by Thursday
+[12/03/2026, 9:12:30 AM] Meera: on it 👍
+[12/03/2026, 9:30:00 AM] Ritu (Sales): Mr Kapoor still hasn't sent the brand logo and product photos. Chasing him today.
+[12/03/2026, 11:45:21 AM] Vikram (QA): Do we have a staging URL yet?
+[12/03/2026, 11:50:09 AM] Arjun: staging is up, link in the group description
+[13/03/2026, 10:00:03 AM] Arjun: Catalogue endpoints are live on staging, swagger docs updated
+[13/03/2026, 10:20:44 AM] Vikram (QA): Tested the catalogue API, pagination breaks when page > 50
+[13/03/2026, 10:25:10 AM] Arjun: ok will look at the pagination bug
+[13/03/2026, 2:15:00 PM] Arjun: pagination issue fixed, pushed
+[13/03/2026, 2:40:33 PM] Vikram (QA): confirmed, works now
+[13/03/2026, 3:00:12 PM] Mr Kapoor: Hi team, sending the logo files now
+[13/03/2026, 3:01:50 PM] Mr Kapoor: <Media omitted>
+[13/03/2026, 3:02:20 PM] Mr Kapoor: photos will come tomorrow
+[13/03/2026, 3:30:00 PM] Priya (PM): Thanks Mr Kapoor 🙏
+[14/03/2026, 9:40:00 AM] Meera: Homepage layout is done, please review
+[14/03/2026, 11:00:27 AM] Mr Kapoor: Looks great, approved. Go ahead.
+[14/03/2026, 11:15:00 AM] Priya (PM): Arjun, please also integrate Razorpay for checkout by the 20th
+[14/03/2026, 11:20:10 AM] Mr Kapoor: Actually we want PayU instead of Razorpay, our bank prefers it
+[14/03/2026, 11:25:00 AM] Priya (PM): Noted. Arjun, switch it to PayU then.
+[14/03/2026, 4:00:00 PM] Arjun: PayU sandbox keys needed from the client to proceed
+[14/03/2026, 4:10:00 PM] Ritu (Sales): I'll ask Mr Kapoor for the PayU keys tomorrow morning
+[15/03/2026, 10:30:00 AM] Ritu (Sales): Asked him, he says his accountant will share them
+[17/03/2026, 10:00:00 AM] Priya (PM): Any update on the PayU keys? Arjun is blocked
+[17/03/2026, 10:30:00 AM] Ritu (Sales): No reply from client yet
+[18/03/2026, 9:00:00 AM] Meera: Product listing page finished and merged
+[18/03/2026, 5:00:00 PM] Mr Kapoor: Keys sent over email
+[18/03/2026, 5:30:00 PM] Arjun: Got them, resuming the PayU work
+[19/03/2026, 6:45:00 PM] Arjun: PayU checkout working on staging, test payment went through
+[20/03/2026, 10:00:00 AM] Vikram (QA): Regression pass done on checkout, no issues
+[20/03/2026, 10:30:00 AM] Priya (PM): Great. Deploying everything to production tomorrow evening.
+[21/03/2026, 7:00:00 PM] Arjun: Production deployment complete 🚀

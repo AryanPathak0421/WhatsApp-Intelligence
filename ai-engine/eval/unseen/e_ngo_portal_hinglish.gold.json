@@ -1,0 +1,15 @@
+{
+  "note": "TRUE HOLDOUT: written after the rule fixes, run once, never tuned on.",
+  "tasks": [
+    {"keywords": ["design"], "assignee": "Pallavi", "status": "COMPLETED"},
+    {"keywords": ["razorpay"], "assignee": "Yash", "status": "IN_PROGRESS"}
+  ],
+  "client_pending": [
+    {"keywords": ["80g"], "status": "OPEN"},
+    {"keywords": ["keys"], "status": "OPEN"}
+  ],
+  "requirement_changes": [],
+  "bugs": [],
+  "decisions": [{"keywords": ["razorpay"]}],
+  "conflicts": 0
+}

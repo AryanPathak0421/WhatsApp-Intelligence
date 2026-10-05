@@ -1,0 +1,15 @@
+[03/06/2026, 10:05:12 AM] Manish Bhai: Namaste sab log. NGO donation portal ka project aaj se. Launch 25 June.
+[03/06/2026, 10:07:40 AM] Manish Bhai: Pallavi donation page ka design bana do, kal tak
+[03/06/2026, 10:08:15 AM] Pallavi: Ji bhaiya
+[03/06/2026, 10:10:02 AM] Manish Bhai: Yash payment gateway lagana hai, Instamojo ya Razorpay?
+[03/06/2026, 10:12:30 AM] Mrs. Iyer: Razorpay hi use karo, humara trustee ka account wahi pe hai
+[03/06/2026, 10:13:01 AM] Manish Bhai: Theek hai, Razorpay final. Yash tum integrate karo, 15 June tak
+[03/06/2026, 10:14:00 AM] Yash: Okay sir, shuru karta hu
+[03/06/2026, 12:40:00 PM] Sunita (Admin): 80G certificate ka format client se abhi tak nahi mila
+[03/06/2026, 12:45:00 PM] Manish Bhai: Mrs. Iyer kripya 80G certificate ka format bhej dijiye
+[04/06/2026, 11:00:00 AM] Pallavi: Donation page ka design ho gaya, Figma link: figma.com/file/abc
+[04/06/2026, 11:30:00 AM] Mrs. Iyer: Design bahut accha hai, approve kar rahe hain
+[04/06/2026, 05:00:00 PM] Yash: Razorpay test mode me payment ho raha hai, live keys chahiye
+[04/06/2026, 05:10:00 PM] Manish Bhai: Mrs. Iyer live keys bhi bhej dena
+[06/06/2026, 10:00:00 AM] Manish Bhai: Mrs. Iyer, 80G format ka kya hua?
+[06/06/2026, 03:00:00 PM] Mrs. Iyer: Abhi trustees se pooch rahi hu, 2-3 din lagenge

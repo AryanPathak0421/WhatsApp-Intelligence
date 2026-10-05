@@ -1,0 +1,16 @@
+# runtime (versions tested in this repo; Python 3.12 image)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.8
+python-multipart>=0.0.9
+numpy>=2.0
+networkx>=3.3
+dateparser>=1.2
+openpyxl>=3.1
+reportlab>=4.0
+scikit-learn>=1.5
+joblib>=1.4
+transformers>=4.45
+sentencepiece>=0.2
+safetensors>=0.4
+# torch (CPU) is installed in the Dockerfile from the PyTorch CPU index

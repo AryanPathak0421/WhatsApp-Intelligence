@@ -1,0 +1,18 @@
+11/07/2026, 09:15 - Gaurav (PM): Folks, FinTrack wallet app. First milestone is the KYC flow, target 31st July.
+11/07/2026, 09:18 - Gaurav (PM): Bhavna - KYC document upload screen, you own it. Aadhaar + PAN.
+11/07/2026, 09:20 - Bhavna: Taking it. Will use the camera plugin.
+11/07/2026, 09:22 - Gaurav (PM): Ajay, please set up the verification service that talks to the KYC vendor.
+11/07/2026, 09:30 - Ajay: Vendor sandbox credentials needed first, who has them?
+11/07/2026, 09:32 - Mrs Desai (FinTrack): I will ask our compliance officer, they hold the credentials.
+11/07/2026, 11:10 - Tanvi (QA): Heads up, test devices - we only have 2 Android phones, need an iPhone too.
+11/07/2026, 03:00 PM - Bhavna: upload screen first version is up in the build, PAN works, Aadhaar scan is flaky
+12/07/2026, 10:00 - Tanvi (QA): Aadhaar scan fails on low light, crashes the app
+12/07/2026, 10:20 - Bhavna: looking at it
+12/07/2026, 02:30 - Bhavna: Fixed the low light crash, new build 0.4.2
+12/07/2026, 02:50 - Tanvi (QA): Rechecked, no crash now
+13/07/2026, 09:00 - Mrs Desai (FinTrack): Compliance officer sent the vendor credentials on mail
+13/07/2026, 09:40 - Ajay: Got the credentials, wiring up the verification service now
+14/07/2026, 05:00 PM - Ajay: Verification service completed, calling the vendor sandbox successfully
+14/07/2026, 05:30 PM - Gaurav (PM): Amazing. Ajay, also add retry with backoff when the vendor times out.
+14/07/2026, 05:35 - Mrs Desai (FinTrack): Please make sure PAN verification happens before Aadhaar, our policy requires that order.
+14/07/2026, 05:40 - Gaurav (PM): Noted, will follow that order.

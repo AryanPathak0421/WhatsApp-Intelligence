@@ -1,0 +1,101 @@
+{"project_id": "probe", "message_id": "probe-TASK-0", "message": "Rohan bhai can you pick up the wishlist feature this sprint", "category": "TASK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK-1", "message": "Priya, kindly set up CI pipeline for the staging server by Thursday", "category": "TASK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK-2", "message": "checkout ka validation Amit tu dekh lena please", "category": "TASK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK-3", "message": "Need someone to write the API docs, Karan can you handle?", "category": "TASK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK-4", "message": "Sneha mockups for the profile page banane hain, monday tak", "category": "TASK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_IN_PROGRESS-0", "message": "started on the OTP flow, half way through", "category": "TASK_IN_PROGRESS", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_IN_PROGRESS-1", "message": "abhi ussi pe lga hu, shaam tak update dunga", "category": "TASK_IN_PROGRESS", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_IN_PROGRESS-2", "message": "coding the refund module right now", "category": "TASK_IN_PROGRESS", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_IN_PROGRESS-3", "message": "wip - working through the cart edge cases", "category": "TASK_IN_PROGRESS", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_IN_PROGRESS-4", "message": "review comments address kar raha hu", "category": "TASK_IN_PROGRESS", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_COMPLETED-0", "message": "wishlist is ready and merged to main", "category": "TASK_COMPLETED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_COMPLETED-1", "message": "ho gaya bhai, PR merge kar diya", "category": "TASK_COMPLETED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_COMPLETED-2", "message": "the OTP flow is finished, all green", "category": "TASK_COMPLETED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_COMPLETED-3", "message": "email templates complete, sent for review", "category": "TASK_COMPLETED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_COMPLETED-4", "message": "finally wrapped up the search module", "category": "TASK_COMPLETED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_BLOCKED-0", "message": "stuck - the SMS provider hasn't activated our account", "category": "TASK_BLOCKED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_BLOCKED-1", "message": "can't move ahead until we get the DB access", "category": "TASK_BLOCKED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_BLOCKED-2", "message": "API keys nahi mile isliye atka hua hu", "category": "TASK_BLOCKED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_BLOCKED-3", "message": "blocked on design assets from Sneha", "category": "TASK_BLOCKED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_PENDING-0", "message": "haven't picked up the refund module yet", "category": "TASK_PENDING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_PENDING-1", "message": "report export abhi baaki hai", "category": "TASK_PENDING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_PENDING-2", "message": "still to do: notification settings page", "category": "TASK_PENDING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TASK_PENDING-3", "message": "profile edit is yet to start", "category": "TASK_PENDING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BUG-0", "message": "app crashes when I tap on the cart icon", "category": "BUG", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BUG-1", "message": "login fails on Safari", "category": "BUG", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BUG-2", "message": "payment page me total galat dikh raha hai", "category": "BUG", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BUG-3", "message": "images are not loading on slow network", "category": "BUG", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BUG-4", "message": "getting 500 error on order submit", "category": "BUG", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BUG_FIXED-0", "message": "crash on cart tap is sorted now", "category": "BUG_FIXED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BUG_FIXED-1", "message": "resolved the Safari login issue, please verify", "category": "BUG_FIXED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BUG_FIXED-2", "message": "total wala bug theek kar diya", "category": "BUG_FIXED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BUG_FIXED-3", "message": "patched the 500 error, deployed to staging", "category": "BUG_FIXED", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-REQUIREMENT-0", "message": "the app should support dark mode as well", "category": "REQUIREMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-REQUIREMENT-1", "message": "client chahta hai ki invoice me GST number aaye", "category": "REQUIREMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-REQUIREMENT-2", "message": "we need role based access for the admin panel", "category": "REQUIREMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-REQUIREMENT-3", "message": "users must be able to export orders as excel", "category": "REQUIREMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-REQUIREMENT_CHANGE-0", "message": "actually client now wants PayU instead of Razorpay", "category": "REQUIREMENT_CHANGE", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-REQUIREMENT_CHANGE-1", "message": "naya scope: wishlist ab guest users ke liye bhi chahiye", "category": "REQUIREMENT_CHANGE", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-REQUIREMENT_CHANGE-2", "message": "they changed their mind, login should be via phone only", "category": "REQUIREMENT_CHANGE", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-REQUIREMENT_CHANGE-3", "message": "instead of email OTP, client wants WhatsApp OTP now", "category": "REQUIREMENT_CHANGE", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_FEEDBACK-0", "message": "client says the font looks too small on mobile", "category": "CLIENT_FEEDBACK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_FEEDBACK-1", "message": "unhe banner ka color pasand nahi aaya", "category": "CLIENT_FEEDBACK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_FEEDBACK-2", "message": "feedback from client: checkout has too many steps", "category": "CLIENT_FEEDBACK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_FEEDBACK-3", "message": "client is asking to move the logo to the left", "category": "CLIENT_FEEDBACK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_APPROVAL-0", "message": "got the green signal from the client on the homepage", "category": "CLIENT_APPROVAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_APPROVAL-1", "message": "client ne wireframes approve kar diye", "category": "CLIENT_APPROVAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_APPROVAL-2", "message": "approved by client, go ahead with development", "category": "CLIENT_APPROVAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_APPROVAL-3", "message": "client is happy with the demo, approved", "category": "CLIENT_APPROVAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_PENDING-0", "message": "still waiting for the client to send the logo files", "category": "CLIENT_PENDING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_PENDING-1", "message": "client se hosting credentials abhi tak nahi aaye", "category": "CLIENT_PENDING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_PENDING-2", "message": "UAT sign-off from client is pending since Monday", "category": "CLIENT_PENDING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-CLIENT_PENDING-3", "message": "haven't heard back from client on the content", "category": "CLIENT_PENDING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-SALES-0", "message": "spoke to the client about the extended scope, will share a quote", "category": "SALES", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-SALES-1", "message": "sent them the revised proposal yesterday", "category": "SALES", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-SALES-2", "message": "new lead wants a similar app, setting up a call", "category": "SALES", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-SALES-3", "message": "following up with the client regarding AMC", "category": "SALES", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-PAYMENT-0", "message": "second milestone payment has not been received yet", "category": "PAYMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-PAYMENT-1", "message": "client ne advance transfer kar diya", "category": "PAYMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-PAYMENT-2", "message": "invoice 214 is overdue by a week", "category": "PAYMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-PAYMENT-3", "message": "payment reminder bhej diya hai", "category": "PAYMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DEPLOYMENT-0", "message": "pushed the new build to production", "category": "DEPLOYMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DEPLOYMENT-1", "message": "release v1.3 is live on the play store", "category": "DEPLOYMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DEPLOYMENT-2", "message": "server pe deploy ho gaya hai", "category": "DEPLOYMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DEPLOYMENT-3", "message": "staging environment updated with latest changes", "category": "DEPLOYMENT", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TESTING-0", "message": "ran the regression suite, 3 cases failing", "category": "TESTING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TESTING-1", "message": "QA pass done on the checkout flow", "category": "TESTING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TESTING-2", "message": "testing complete for login, sab pass", "category": "TESTING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-TESTING-3", "message": "smoke test on staging looks fine", "category": "TESTING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-MEETING-0", "message": "let's have a call tomorrow at 11 to review progress", "category": "MEETING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-MEETING-1", "message": "meeting with client at 5 pm today", "category": "MEETING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-MEETING-2", "message": "demo ke liye kal 3 baje call rakhte hain", "category": "MEETING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-MEETING-3", "message": "sprint planning on Monday morning", "category": "MEETING", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DECISION-0", "message": "we have decided to go with PostgreSQL", "category": "DECISION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DECISION-1", "message": "final decision: launch date is 20th", "category": "DECISION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DECISION-2", "message": "client ne confirm kiya ki hum React Native use karenge", "category": "DECISION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DECISION-3", "message": "agreed - we will drop the chat feature from v1", "category": "DECISION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DEADLINE-0", "message": "delivery date is 15th November", "category": "DEADLINE", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DEADLINE-1", "message": "the demo is due next Friday", "category": "DEADLINE", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DEADLINE-2", "message": "launch deadline kal hai", "category": "DEADLINE", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DEADLINE-3", "message": "we must submit the build by EOD", "category": "DEADLINE", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-QUESTION-0", "message": "what's the status of the invoice module?", "category": "QUESTION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-QUESTION-1", "message": "kya payment gateway ready hai?", "category": "QUESTION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-QUESTION-2", "message": "did anyone check the server logs?", "category": "QUESTION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-QUESTION-3", "message": "who is handling the push notifications?", "category": "QUESTION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DISCUSSION-0", "message": "i feel we should use a queue for emails instead", "category": "DISCUSSION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DISCUSSION-1", "message": "iska aur accha solution kya ho sakta hai?", "category": "DISCUSSION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DISCUSSION-2", "message": "maybe split the dashboard into two screens", "category": "DISCUSSION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-DISCUSSION-3", "message": "pagination vs infinite scroll, thoughts?", "category": "DISCUSSION", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-RISK-0", "message": "if the API isn't ready by Friday we'll miss the launch", "category": "RISK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-RISK-1", "message": "timeline kaafi tight lag rahi hai", "category": "RISK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-RISK-2", "message": "there's a risk the client changes scope again", "category": "RISK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-RISK-3", "message": "server cost may exceed the budget", "category": "RISK", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BLOCKER-0", "message": "no access to the production server, this is a major blocker", "category": "BLOCKER", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-BLOCKER-1", "message": "biggest blocker is the missing third party API", "category": "BLOCKER", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-GENERAL-0", "message": "good morning everyone", "category": "GENERAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-GENERAL-1", "message": "thanks!", "category": "GENERAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-GENERAL-2", "message": "ok sir", "category": "GENERAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-GENERAL-3", "message": "haan theek hai", "category": "GENERAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-GENERAL-4", "message": "👍", "category": "GENERAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-GENERAL-5", "message": "happy new year team", "category": "GENERAL", "source": "handwritten-probe"}
+{"project_id": "probe", "message_id": "probe-GENERAL-6", "message": "will check and let you know", "category": "GENERAL", "source": "handwritten-probe"}

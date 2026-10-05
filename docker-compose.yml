@@ -1,0 +1,127 @@
+# Production stack.  Only the `edge` (nginx) container is reachable from outside; Postgres, Redis and the AI engine live on an
+# internal network with NO internet access, so chat data cannot leave the host.
+#   docker compose --env-file .env up -d --build
+# Validate the file without secrets:  scripts/check-compose.sh
+x-common: &common
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  logging: { driver: json-file, options: { max-size: "20m", max-file: "5" } }
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: "postgresql://wa:${POSTGRES_PASSWORD}@postgres:5432/wa_intel"
+  REDIS_URL: "redis://:${REDIS_PASSWORD}@redis:6379"
+  JWT_ACCESS_SECRET: "${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET (scripts/gen-secrets.sh)}"
+  JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}"
+  FIELD_ENCRYPTION_KEY: "${FIELD_ENCRYPTION_KEY:?set FIELD_ENCRYPTION_KEY}"
+  AI_ENGINE_URL: http://ai-engine:8000
+  AI_ENGINE_TOKEN: "${AI_ENGINE_TOKEN:?set AI_ENGINE_TOKEN}"
+  UPLOAD_DIR: /data/uploads
+  UPLOAD_TTL_HOURS: "${UPLOAD_TTL_HOURS:-24}"
+  CORS_ORIGIN: "${PUBLIC_URL:?set PUBLIC_URL, e.g. https://intel.example.com}"
+  TRUST_PROXY: "1"
+
+services:
+  postgres:
+    <<: *common
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: wa
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
+      POSTGRES_DB: wa_intel
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"   # the API refuses to start on a non-UTF8 database
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [internal]
+    shm_size: 256m
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U wa -d wa_intel"], interval: 10s, timeout: 5s, retries: 10 }
+
+  redis:
+    <<: *common
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD}", "--maxmemory-policy", "noeviction"]
+    volumes: [redisdata:/data]
+    networks: [internal]
+    healthcheck: { test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"], interval: 10s, timeout: 3s, retries: 5 }
+    environment: { REDIS_PASSWORD: "${REDIS_PASSWORD}" }
+
+  ai-engine:               # self-hosted NLP/ML; internal network only; models are loaded from the `models` volume (offline)
+    <<: *common
+    build: ./ai-engine
+    environment:
+      AI_ENGINE_TOKEN: "${AI_ENGINE_TOKEN}"
+      EMBED_MODEL: "${EMBED_MODEL:-intfloat/multilingual-e5-small}"
+      HF_HOME: /models
+      HF_HUB_OFFLINE: "1"
+      CLASSIFIER_PATH: "${CLASSIFIER_PATH:-}"
+    volumes: [models:/models]
+    networks: [internal]
+    cap_drop: [ALL]
+    mem_limit: "${AI_MEM_LIMIT:-6g}"
+    healthcheck: { test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"], interval: 15s, timeout: 5s, retries: 5, start_period: 40s }
+    # GPU (optional): add  deploy: { resources: { reservations: { devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }] } } }  and set DEVICE=cuda
+
+  backend:
+    <<: *common
+    build: ./backend
+    environment: { <<: *app-env, PORT: "4000" }
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      ai-engine: { condition: service_healthy }
+    volumes: [uploads:/data/uploads]
+    networks: [internal]
+    cap_drop: [ALL]
+    mem_limit: "${BACKEND_MEM_LIMIT:-1g}"
+    healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], interval: 15s, timeout: 5s, retries: 5, start_period: 30s }
+
+  worker:                  # BullMQ analysis worker (same image). Scale with: docker compose up -d --scale worker=2
+    <<: *common
+    build: ./backend
+    command: ["node", "dist/src/workers/index.js"]
+    environment: *app-env
+    depends_on: { backend: { condition: service_healthy } }
+    volumes: [uploads:/data/uploads]
+    networks: [internal]
+    cap_drop: [ALL]
+    mem_limit: "${WORKER_MEM_LIMIT:-1g}"
+
+  edge:                    # TLS termination + SPA + /api proxy + rate limits (deploy/nginx/nginx.conf)
+    <<: *common
+    build: { context: ., dockerfile: frontend/Dockerfile }
+    depends_on: { backend: { condition: service_healthy } }
+    ports: ["${HTTP_PORT:-80}:8080", "${HTTPS_PORT:-443}:8443"]
+    volumes:
+      - ./deploy/certs:/etc/nginx/certs:ro        # fullchain.pem + privkey.pem  (docs/DEPLOYMENT.md, section TLS)
+      - certbot-www:/var/www/certbot
+    networks: [internal, edge]
+    cap_drop: [ALL]
+
+  backup:                  # optional: docker compose --profile backup up -d   (nightly pg_dump + uploads tarball, 14-day retention)
+    <<: *common
+    image: pgvector/pgvector:pg16
+    profiles: ["backup"]
+    entrypoint: ["/bin/bash", "/scripts/backup-loop.sh"]
+    environment: { PGHOST: postgres, PGUSER: wa, PGPASSWORD: "${POSTGRES_PASSWORD}", PGDATABASE: wa_intel, BACKUP_KEEP_DAYS: "${BACKUP_KEEP_DAYS:-14}" }
+    volumes: [./scripts:/scripts:ro, uploads:/data/uploads:ro, "${BACKUP_DIR:-./backups}:/backups"]
+    networks: [internal]
+    depends_on: { postgres: { condition: service_healthy } }
+
+  certbot:                 # optional Let's Encrypt:  docker compose --profile certbot run --rm certbot certonly --webroot -w /var/www/certbot -d HOST
+    image: certbot/certbot
+    profiles: ["certbot"]
+    entrypoint: ["certbot"]
+    volumes: ["./deploy/certs-le:/etc/letsencrypt", "certbot-www:/var/www/certbot"]
+    networks: [edge]
+
+  model-fetch:             # one-off, needs internet: docker compose --profile setup run --rm model-fetch
+    image: python:3.12-slim
+    profiles: ["setup"]
+    entrypoint: ["/bin/sh", "/scripts/fetch-models.sh"]
+    environment: { HF_HOME: /models, EMBED_MODEL: "${EMBED_MODEL:-intfloat/multilingual-e5-small}" }
+    volumes: [./scripts:/scripts:ro, models:/models]
+    networks: [edge]
+
+volumes: { pgdata: {}, redisdata: {}, models: {}, uploads: {}, certbot-www: {} }
+networks:
+  internal: { internal: true }    # no outbound internet
+  edge: {}

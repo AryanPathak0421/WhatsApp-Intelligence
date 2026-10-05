@@ -1,0 +1,19 @@
+[18/05/2026, 09:00] Neeraj: Good morning. Hospital appointment app - sprint 1 begins today.
+[18/05/2026, 09:04] Neeraj: Isha, appointment slot booking API - can you own it? Dr. Rao wants to see it on Monday.
+[18/05/2026, 09:06] Isha: Yes, I'll start with the schema.
+[18/05/2026, 09:10] Tushar: I'll build the booking screen on the app side meanwhile.
+[18/05/2026, 09:30] Farah (Sales): Dr. Rao is yet to confirm the consultation fee structure. Will chase him.
+[18/05/2026, 14:20] Isha: slot API merged to develop, deploying to staging now.
+[18/05/2026, 14:45] Lakshmi: Tried the slot API on staging. Found an issue: double booking is possible if two users hit the same slot at once.
+[18/05/2026, 14:50] Isha: Good catch, adding a lock around slot creation.
+[18/05/2026, 16:30] Isha: lock added, double booking no longer reproducible.
+[18/05/2026, 16:45] Lakshmi: Verified, all good now.
+[19/05/2026, 10:00] Dr. Rao: Change of plan - we need WhatsApp reminders instead of SMS reminders for patients.
+[19/05/2026, 10:05] Neeraj: Understood Dr. Rao. Tushar, reminders notification module please, by the 26th.
+[19/05/2026, 10:06] Tushar: ok
+[19/05/2026, 11:30] Dr. Rao: Fee structure attached.
+[19/05/2026, 11:30] ‎document omitted
+[19/05/2026, 11:35] Farah (Sales): Thanks Dr. Rao 🙏
+[20/05/2026, 15:00] Tushar: Reminder notifications are working on both Android and iOS now.
+[20/05/2026, 15:30] Isha: Reminder service is deployed to staging.
+[20/05/2026, 16:00] Lakshmi: reminder service is not reachable on staging, getting timeouts

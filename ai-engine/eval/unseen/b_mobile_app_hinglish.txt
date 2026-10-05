@@ -1,0 +1,26 @@
+06/04/26, 10:12 - Rohit Sir: Team, mobile app ka kaam aaj se start. Deadline 30 April hai.
+06/04/26, 10:14 - Rohit Sir: Sandeep tum login aur OTP wala module dekh lo
+06/04/26, 10:15 - Sandeep: ji sir, aaj hi shuru karta hu
+06/04/26, 10:16 - Rohit Sir: Neha dashboard UI banao, Friday tak first draft chahiye
+06/04/26, 10:18 - Neha: theek hai sir
+06/04/26, 10:40 - Amar (Client): Hume app me Hindi language bhi chahiye
+06/04/26, 10:41 - Rohit Sir: Ok noted, scope me add kar denge
+06/04/26, 4:30 PM - Sandeep: OTP ka SMS gateway abhi tak activate nahi hua, wo client se confirm karna padega
+06/04/26, 4:35 PM - Rohit Sir: Amar ji please SMS gateway ka account details bhej do
+07/04/26, 11:00 AM - Rohit Sir: Amar ji kuch update?
+07/04/26, 3:20 PM - Neha: Dashboard ka first draft ready hai, figma link bhej rahi hu
+07/04/26, 3:45 PM - Amar (Client): Dashboard acha hai but colour thoda dark lag raha hai
+07/04/26, 3:50 PM - Neha: ok colour change kar deti hu
+08/04/26, 9:30 AM - Neha: colour update kar diya, check kar lo
+08/04/26, 10:00 AM - Amar (Client): Ab theek hai, approved
+08/04/26, 12:00 PM - Amar (Client): SMS gateway ka account bhej diya hai email pe
+08/04/26, 12:10 PM - Sandeep: mil gaya sir, OTP integrate kar raha hu
+09/04/26, 6:00 PM - Sandeep: login screen complete ho gaya, OTP bhi chal raha hai
+09/04/26, 6:05 PM - Rohit Sir: Wah! Tester ko bol do check kare
+09/04/26, 6:10 PM - Imran (QA): kal subah test karunga
+10/04/26, 11:30 AM - Imran (QA): login me ek bug mila - wrong OTP dene pe app crash ho jata hai
+10/04/26, 11:35 AM - Sandeep: dekhta hu
+10/04/26, 3:00 PM - Sandeep: crash fix kar diya, naya build upload kiya
+10/04/26, 4:00 PM - Imran (QA): ab sab theek chal raha hai
+11/04/26, 10:00 AM - Amar (Client): Payment ke liye UPI bhi chahiye
+11/04/26, 10:05 AM - Rohit Sir: Sandeep UPI payment integration bhi karna hai, 20 April tak

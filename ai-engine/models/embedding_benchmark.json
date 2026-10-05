@@ -1,0 +1,58 @@
+{
+ "hashing": {
+  "recall@3": 0.389,
+  "precision@3": 0.333,
+  "MRR": 0.689,
+  "pair_AUC": 0.691,
+  "pair_best_acc": 0.722,
+  "pair_threshold": 0.085,
+  "pos_mean": 0.159,
+  "neg_mean": 0.013,
+  "neg_p95": 0.094,
+  "pos_p05": -0.036,
+  "ms_per_msg": 0.2,
+  "dim": 384
+ },
+ "intfloat/multilingual-e5-small": {
+  "recall@3": 0.689,
+  "precision@3": 0.6,
+  "MRR": 0.933,
+  "pair_AUC": 0.796,
+  "pair_best_acc": 0.806,
+  "pair_threshold": 0.877,
+  "pos_mean": 0.892,
+  "neg_mean": 0.859,
+  "neg_p95": 0.882,
+  "pos_p05": 0.843,
+  "ms_per_msg": 10.1,
+  "dim": 384
+ },
+ "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2": {
+  "recall@3": 0.589,
+  "precision@3": 0.511,
+  "MRR": 0.9,
+  "pair_AUC": 0.861,
+  "pair_best_acc": 0.833,
+  "pair_threshold": 0.25,
+  "pos_mean": 0.429,
+  "neg_mean": 0.119,
+  "neg_p95": 0.267,
+  "pos_p05": 0.092,
+  "ms_per_msg": 103.9,
+  "dim": 384
+ },
+ "BAAI/bge-small-en-v1.5": {
+  "recall@3": 0.744,
+  "precision@3": 0.644,
+  "MRR": 1.0,
+  "pair_AUC": 0.864,
+  "pair_best_acc": 0.833,
+  "pair_threshold": 0.588,
+  "pos_mean": 0.668,
+  "neg_mean": 0.494,
+  "neg_p95": 0.613,
+  "pos_p05": 0.469,
+  "ms_per_msg": 12.4,
+  "dim": 384
+ }
+}

@@ -1,0 +1,871 @@
+// WhatsApp Project Intelligence - PostgreSQL schema
+//
+// Principles
+//  1. ChatMessage is IMMUTABLE original data. No AI/human edit ever touches it.
+//  2. Every AI-derived row carries: confidence, modelVersion, sourceMessageIds (evidence).
+//  3. Every human edit is a ChangeLog row (who/when/old/new) and may become a TrainingExample.
+//  4. Every row belongs to a Project (hard isolation); all queries filter by projectId.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ───────────── Enums ─────────────
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  PROJECT_MANAGER
+  TEAM_MEMBER
+  SALES
+  CLIENT_VIEWER
+}
+enum MemberRole {
+  PROJECT_MANAGER
+  DEVELOPER
+  FRONTEND_DEVELOPER
+  BACKEND_DEVELOPER
+  FULLSTACK_DEVELOPER
+  QA
+  DESIGNER
+  SALES
+  CLIENT
+  CLIENT_REPRESENTATIVE
+  ADMIN
+  OTHER
+}
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+enum HealthStatus {
+  HEALTHY
+  AT_RISK
+  CRITICAL
+  BLOCKED
+}
+enum UploadStatus {
+  UPLOADED
+  VALIDATING
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  DUPLICATE
+}
+enum MessageType {
+  TEXT
+  MEDIA
+  SYSTEM
+  DELETED
+}
+enum MessageCategory {
+  TASK
+  TASK_COMPLETED
+  TASK_PENDING
+  TASK_IN_PROGRESS
+  TASK_BLOCKED
+  BUG
+  BUG_FIXED
+  REQUIREMENT
+  REQUIREMENT_CHANGE
+  CLIENT_FEEDBACK
+  CLIENT_APPROVAL
+  CLIENT_PENDING
+  SALES
+  PAYMENT
+  DEPLOYMENT
+  TESTING
+  MEETING
+  DECISION
+  DEADLINE
+  QUESTION
+  DISCUSSION
+  RISK
+  BLOCKER
+  GENERAL
+}
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  CANCELLED
+}
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+enum TaskDomain {
+  DEVELOPMENT
+  DESIGN
+  TESTING
+  DEPLOYMENT
+  CLIENT_APPROVAL
+  DOCUMENTATION
+}
+enum ReviewState {
+  AUTO_ACCEPTED
+  NEEDS_REVIEW
+  IN_QUEUE
+  HUMAN_CONFIRMED
+  HUMAN_CORRECTED
+}
+enum PendingStatus {
+  OPEN
+  RESOLVED
+  CANCELLED
+}
+enum PendingType {
+  APPROVAL
+  FEEDBACK
+  CREDENTIALS
+  CONTENT
+  PAYMENT
+  REQUIREMENT
+  UAT
+  PRODUCTION
+  OTHER
+}
+enum BugStatus {
+  OPEN
+  INVESTIGATING
+  IN_PROGRESS
+  FIXED
+  TESTING
+  CLOSED
+  REOPENED
+}
+enum CommitmentStatus {
+  PENDING
+  FULFILLED
+  MISSED
+  CANCELLED
+}
+enum ConflictStatus {
+  NEEDS_VERIFICATION
+  CONFIRMED
+  DISMISSED
+  RESOLVED
+}
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+enum ReportFormat {
+  JSON
+  PDF
+  XLSX
+  CSV
+}
+enum ModelStage {
+  CANDIDATE
+  STAGING
+  PRODUCTION
+  ARCHIVED
+}
+
+// ───────────── Identity / access ─────────────
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         UserRole  @default(TEAM_MEMBER)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  memberships  ProjectMember[]
+  uploads      ChatUpload[]
+  auditLogs    AuditLog[]
+  changeLogs   ChangeLog[]
+  notifications Notification[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+}
+
+model Client {
+  id        String    @id @default(uuid())
+  name      String
+  company   String?
+  email     String?
+  createdAt DateTime  @default(now())
+  projects  Project[]
+}
+
+model Project {
+  id               String        @id @default(uuid())
+  name             String
+  description      String?
+  clientId         String?
+  managerId        String?
+  status           ProjectStatus @default(ACTIVE)
+  startDate        DateTime?
+  expectedDelivery DateTime?
+  timezone         String        @default("Asia/Kolkata")
+  dateOrderHint    String?       // DMY | MDY | YMD override for ambiguous exports
+  healthWeights    Json?         // per-project override of configurable health weights
+  retentionDays    Int?          // null = keep; otherwise messages older than this are purged by the retention sweep
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  client           Client?       @relation(fields: [clientId], references: [id])
+  members          ProjectMember[]
+  participants     ChatParticipant[]
+  uploads          ChatUpload[]
+  messages         ChatMessage[]
+  whatsappSources  WhatsappSource[]
+  modules          ProjectModule[]
+  tasks            Task[]
+  clientPending    ClientPendingItem[]
+  salesActivities  SalesActivity[]
+  requirements     Requirement[]
+  decisions        Decision[]
+  meetings         Meeting[]
+  risks            Risk[]
+  bugs             Bug[]
+  commitments      Commitment[]
+  conflicts        Conflict[]
+  deadlines        Deadline[]
+  events           ProjectEvent[]
+  progress         ProjectProgress[]
+  health           ProjectHealth[]
+  notifications    Notification[]
+  reports          Report[]
+  analyses         AIAnalysis[]
+  jobs             AnalysisJob[]
+  insights         Insight[]
+  @@index([clientId])
+  @@index([status])
+}
+
+// Platform account <-> project access (authorization boundary)
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  canView   Boolean  @default(true)
+  canEdit   Boolean  @default(false)
+  addedAt   DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// ───────────── Chat (immutable originals) ─────────────
+model ChatUpload {
+  id            String       @id @default(uuid())
+  projectId     String
+  uploadedById  String
+  fileName      String
+  storageKey    String       // object-store key, encrypted at rest
+  sha256        String
+  sizeBytes     BigInt
+  status        UploadStatus @default(UPLOADED)
+  errorMessage  String?
+  messageCount  Int          @default(0)
+  newMessageCount Int        @default(0) // after dedupe (incremental import)
+  firstMessageAt DateTime?
+  lastMessageAt  DateTime?
+  parseReport   Json?        // detected date order, warnings
+  purgeAfter    DateTime?    // temp-file cleanup policy
+  createdAt     DateTime     @default(now())
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy    User         @relation(fields: [uploadedById], references: [id])
+  jobs          AnalysisJob[]
+  messages      ChatMessage[]
+  @@unique([projectId, sha256])           // duplicate-upload detection
+  @@index([projectId, createdAt])
+}
+
+model ChatParticipant {
+  id            String      @id @default(uuid())
+  projectId     String
+  displayName   String
+  phone         String?     // stored encrypted/masked in API responses
+  email         String?
+  role          MemberRole  @default(OTHER)
+  roleConfidence Float?
+  roleSource    String?     // admin | model | rule
+  team          String?
+  isActive      Boolean     @default(true)
+  userId        String?     // optional link to platform user
+  createdAt     DateTime    @default(now())
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages      ChatMessage[]
+  assigned      Task[]      @relation("TaskAssignee")
+  created       Task[]      @relation("TaskCreator")
+  assignments   TaskAssignment[]
+  commitments   Commitment[]
+  salesActivities SalesActivity[]
+  @@unique([projectId, displayName])
+  @@index([projectId, role])
+}
+
+model ChatMessage {
+  id            String      @id            // deterministic hash id from the parser (idempotent re-import)
+  projectId     String
+  uploadId      String
+  seq           Int                         // order within project
+  senderId      String?
+  timestamp     DateTime
+  originalText  String                      // EXACT export text. Never updated.
+  text          String                      // cleaned of edit/forward markers
+  messageType   MessageType @default(TEXT)
+  isSystem      Boolean     @default(false)
+  isMedia       Boolean     @default(false)
+  isDeleted     Boolean     @default(false)
+  isEdited      Boolean     @default(false)
+  isForwarded   Boolean     @default(false)
+  urls          String[]
+  replyToId     String?
+  threadId      String?                     // conversation-linking result
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  upload        ChatUpload  @relation(fields: [uploadId], references: [id])
+  sender        ChatParticipant? @relation(fields: [senderId], references: [id])
+  enrichment    MessageEnrichment?
+  embedding     MessageEmbedding?
+  @@index([projectId, timestamp])
+  @@index([projectId, seq])
+  @@index([senderId])
+  @@index([threadId])
+}
+
+// AI interpretation kept OUT of ChatMessage (principle 1)
+model MessageEnrichment {
+  messageId      String      @id
+  projectId      String
+  language       String?     // en | hi | hinglish
+  normalizedText String?
+  category       MessageCategory?
+  categoryConfidence Float?
+  secondaryCategories Json?  // [{category, confidence}]
+  entities       Json?       // [{label,text,start,end,confidence}]
+  sentiment      String?
+  sentimentScore Float?
+  moduleId       String?
+  reviewState    ReviewState @default(AUTO_ACCEPTED)
+  modelVersions  Json        // {classifier:"classifier_v1.2", ner:"ner_v2.0", ...}
+  createdAt      DateTime    @default(now())
+  message        ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  @@index([projectId, category])
+  @@index([projectId, reviewState])
+}
+
+model MessageEmbedding {
+  messageId    String   @id
+  projectId    String
+  modelVersion String
+  embedding    Unsupported("vector(384)")
+  message      ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  @@index([projectId])
+}
+
+model ProjectModule {
+  id        String   @id @default(uuid())
+  projectId String
+  name      String   // Payments, Authentication, ...
+  isManual  Boolean  @default(false)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+  @@unique([projectId, name])
+}
+
+// ───────────── Work items ─────────────
+model Task {
+  id             String      @id @default(uuid())
+  projectId      String
+  moduleId       String?
+  title          String
+  description    String?
+  assigneeId     String?
+  createdById    String?
+  priority       Priority    @default(MEDIUM)
+  status         TaskStatus  @default(TODO)
+  domain         TaskDomain  @default(DEVELOPMENT)
+  weight         Float       @default(1)       // complexity weight for progress (1,3,5,8..)
+  weightSource   String?     // rule | model | manual
+  deadlineText   String?
+  deadline       DateTime?
+  deadlineConfidence Float?
+  completedAt    DateTime?
+  externalDependency String? // e.g. "Client Credentials"
+  confidence     Float       @default(0)
+  reviewState    ReviewState @default(NEEDS_REVIEW)
+  modelVersion   String?
+  sourceMessageId String?    // message that created the task
+  evidenceMessageIds String[] // ALL messages linked into this task (clustering)
+  statusEvidence Json?       // [{messageId, signal, delta}] why status = X
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  project        Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  module         ProjectModule? @relation(fields: [moduleId], references: [id])
+  assignee       ChatParticipant? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  createdBy      ChatParticipant? @relation("TaskCreator", fields: [createdById], references: [id])
+  history        TaskHistory[]
+  assignments    TaskAssignment[]
+  pendingItems   ClientPendingItem[]
+  bugs           Bug[]
+  commitments    Commitment[]
+  @@index([projectId, status])
+  @@index([projectId, assigneeId])
+  @@index([projectId, deadline])
+  @@index([assigneeId])
+}
+
+model TaskHistory {
+  id        String     @id @default(uuid())
+  taskId    String
+  field     String
+  oldValue  String?
+  newValue  String?
+  changedBy String?    // user id, or "model:<version>"
+  evidenceMessageId String?
+  changedAt DateTime   @default(now())
+  task      Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  @@index([taskId, changedAt])
+}
+
+model TaskAssignment {
+  id            String   @id @default(uuid())
+  taskId        String
+  participantId String
+  assignedAt    DateTime
+  unassignedAt  DateTime?
+  confidence    Float?
+  sourceMessageId String?
+  task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  participant   ChatParticipant @relation(fields: [participantId], references: [id])
+  @@index([taskId])
+  @@index([participantId])
+}
+
+model ClientPendingItem {
+  id           String        @id @default(uuid())
+  projectId    String
+  taskId       String?
+  clientId     String?
+  type         PendingType   @default(OTHER)
+  title        String
+  description  String?
+  requestedById String?
+  requestedAt  DateTime?
+  waitingSince DateTime
+  deadline     DateTime?
+  priority     Priority      @default(MEDIUM)
+  impact       RiskLevel     @default(MEDIUM)
+  status       PendingStatus @default(OPEN)
+  resolvedAt   DateTime?
+  resolutionMessageId String?
+  responsible  String        @default("CLIENT") // CLIENT | SALES
+  confidence   Float
+  reviewState  ReviewState   @default(NEEDS_REVIEW)
+  modelVersion String
+  sourceMessageIds String[]
+  createdAt    DateTime      @default(now())
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task         Task?         @relation(fields: [taskId], references: [id])
+  @@index([projectId, status])
+  @@index([clientId])
+}
+
+model SalesActivity {
+  id         String   @id @default(uuid())
+  projectId  String
+  salespersonId String?
+  type       String   // FOLLOW_UP | PROPOSAL | PAYMENT_DISCUSSION | SCOPE | ESCALATION | REQUIREMENT_COLLECTED
+  summary    String
+  occurredAt DateTime
+  followUpDate DateTime?
+  isPending  Boolean  @default(false)
+  confidence Float
+  modelVersion String
+  sourceMessageIds String[]
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  salesperson ChatParticipant? @relation(fields: [salespersonId], references: [id])
+  @@index([projectId, occurredAt])
+  @@index([salespersonId])
+}
+
+model Requirement {
+  id         String   @id @default(uuid())
+  projectId  String
+  moduleId   String?
+  key        String   // stable identity across versions e.g. "payment-provider"
+  currentValue String
+  requestedBy String?
+  confidence Float
+  modelVersion String
+  createdAt  DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  changes    RequirementChange[]
+  @@unique([projectId, key])
+}
+
+model RequirementChange {
+  id            String   @id @default(uuid())
+  requirementId String
+  version       Int
+  oldValue      String?
+  newValue      String
+  changedBy     String?  // person who asked (client / PM)
+  impact        String?
+  changedAt     DateTime
+  confidence    Float
+  modelVersion  String
+  sourceMessageIds String[]
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  @@index([requirementId, version])
+}
+
+model Decision {
+  id         String   @id @default(uuid())
+  projectId  String
+  title      String
+  decidedBy  String?
+  impact     String?
+  decidedAt  DateTime
+  confidence Float
+  modelVersion String
+  sourceMessageIds String[]
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, decidedAt])
+}
+
+model Meeting {
+  id         String   @id @default(uuid())
+  projectId  String
+  title      String
+  scheduledAt DateTime?
+  summary    String?
+  decisions  Json?
+  confidence Float
+  modelVersion String
+  sourceMessageIds String[]
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, scheduledAt])
+}
+
+model Commitment {
+  id            String   @id @default(uuid())
+  projectId     String
+  participantId String?
+  taskId        String?
+  action        String
+  deadlineText  String?
+  deadline      DateTime?
+  status        CommitmentStatus @default(PENDING)
+  fulfilledAt   DateTime?
+  confidence    Float
+  modelVersion  String
+  sourceMessageIds String[]
+  createdAt     DateTime @default(now())
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  participant   ChatParticipant? @relation(fields: [participantId], references: [id])
+  task          Task?    @relation(fields: [taskId], references: [id])
+  @@index([projectId, status])
+  @@index([participantId])
+}
+
+model Deadline {
+  id           String   @id @default(uuid())
+  projectId    String
+  taskId       String?
+  originalText String
+  normalized   DateTime?
+  timezone     String
+  confidence   Float
+  sourceMessageId String
+  createdAt    DateTime @default(now())
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, normalized])
+  @@index([taskId])
+}
+
+model Bug {
+  id          String    @id @default(uuid())
+  projectId   String
+  taskId      String?
+  title       String
+  status      BugStatus @default(OPEN)
+  severity    Priority  @default(MEDIUM)
+  reportedById String?
+  assigneeId  String?
+  reportedAt  DateTime
+  fixedAt     DateTime?
+  confidence  Float
+  modelVersion String
+  sourceMessageIds String[]
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task        Task?     @relation(fields: [taskId], references: [id])
+  @@index([projectId, status])
+  @@index([assigneeId])
+}
+
+model Conflict {
+  id         String         @id @default(uuid())
+  projectId  String
+  topic      String
+  statementA String
+  statementB String
+  messageAId String
+  messageBId String
+  severity   RiskLevel      @default(MEDIUM)
+  status     ConflictStatus @default(NEEDS_VERIFICATION)
+  confidence Float
+  modelVersion String
+  detectedAt DateTime       @default(now())
+  project    Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, status])
+}
+
+model Risk {
+  id          String    @id @default(uuid())
+  projectId   String
+  taskId      String?
+  title       String
+  description String
+  severity    RiskLevel
+  score       Float     // 0-100
+  factors     Json      // explainable factor breakdown
+  recommendedAction String?
+  isOpen      Boolean   @default(true)
+  detectedAt  DateTime  @default(now())
+  confidence  Float
+  modelVersion String
+  sourceMessageIds String[]
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, severity, isOpen])
+}
+
+model ProjectEvent {
+  id         String   @id @default(uuid())
+  projectId  String
+  occurredAt DateTime
+  type       String   // MILESTONE | APPROVAL | DEPLOYMENT | DECISION | BLOCKER ...
+  title      String
+  sourceMessageIds String[]
+  confidence Float
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, occurredAt])
+}
+
+// ───────────── Analytics snapshots (one row per analysis run) ─────────────
+model ProjectProgress {
+  id          String   @id @default(uuid())
+  projectId   String
+  jobId       String?
+  computedAt  DateTime @default(now())
+  overall     Float
+  development Float?
+  design      Float?
+  testing     Float?
+  deployment  Float?
+  clientApproval Float?
+  documentation  Float?
+  completedWeight Float
+  totalWeight     Float
+  explanation Json     // task-level contributions for "Why N%?"
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, computedAt])
+}
+
+model ProjectHealth {
+  id         String       @id @default(uuid())
+  projectId  String
+  jobId      String?
+  computedAt DateTime     @default(now())
+  score      Float
+  status     HealthStatus
+  components Json         // per-factor score + weight
+  project    Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, computedAt])
+}
+
+model Insight {
+  id         String   @id @default(uuid())
+  projectId  String
+  kind       String   // SUMMARY | NEXT_ACTION | BOTTLENECK | RECOMMENDATION
+  text       String
+  owner      String?
+  priority   Priority?
+  dueAt      DateTime?
+  evidence   Json      // {taskIds, messageIds, graphPath}
+  createdAt  DateTime @default(now())
+  modelVersion String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, kind])
+}
+
+model AIAnalysis {
+  id           String   @id @default(uuid())
+  projectId    String
+  jobId        String?
+  kind         String   // PIPELINE_SUMMARY | CONTRIBUTION | CLIENT_RESPONSE_TIME | GRAPH ...
+  result       Json
+  modelVersions Json
+  createdAt    DateTime @default(now())
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, kind, createdAt])
+}
+
+model AnalysisJob {
+  id        String    @id @default(uuid())
+  projectId String
+  uploadId  String?
+  status    JobStatus @default(QUEUED)
+  stage     String?   // parsing | classification | ... (UI progress labels)
+  progress  Int       @default(0)
+  error     String?   // sanitized, never a stack trace
+  startedAt DateTime?
+  finishedAt DateTime?
+  createdAt DateTime  @default(now())
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  upload    ChatUpload? @relation(fields: [uploadId], references: [id])
+  @@index([projectId, status])
+}
+
+// ───────────── Reports / notifications / audit ─────────────
+model Report {
+  id          String       @id @default(uuid())
+  projectId   String
+  generatedBy String?
+  periodStart DateTime?
+  periodEnd   DateTime?
+  kind        String       @default("FULL") // FULL | DAILY | WEEKLY
+  format      ReportFormat @default(JSON)
+  content     Json
+  storageKey  String?
+  createdAt   DateTime     @default(now())
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, createdAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  projectId String?
+  type      String   // CLIENT_PENDING_NEW | TASK_OVERDUE | HIGH_RISK | REQUIREMENT_CHANGE ...
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([userId, readAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  projectId String?
+  action    String   // UPLOAD | VIEW_SENSITIVE | UPDATE_TASK | GENERATE_REPORT | CHANGE_MEMBER | OVERRIDE_AI
+  entity    String?
+  entityId  String?
+  ip        String?
+  meta      Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+  @@index([projectId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// Generic human-override trail (changedBy/changedAt/oldValue/newValue)
+model ChangeLog {
+  id        String   @id @default(uuid())
+  projectId String
+  entity    String   // Task | ClientPendingItem | ChatParticipant | Risk | ...
+  entityId  String
+  field     String
+  oldValue  Json?
+  newValue  Json?
+  changedById String
+  changedAt DateTime @default(now())
+  user      User     @relation(fields: [changedById], references: [id])
+  @@index([projectId, entity, entityId])
+}
+
+// ───────────── ML lifecycle (self-hosted learning loop) ─────────────
+model ModelVersion {
+  id          String     @id @default(uuid())
+  name        String     // classifier | ner | embedding | summarizer
+  version     String     // classifier_v1.2
+  stage       ModelStage @default(CANDIDATE)
+  datasetVersion String  // DVC tag
+  metrics     Json       // macroF1, per-class F1, latency, ...
+  hyperparams Json?
+  mlflowRunId String?
+  artifactPath String
+  createdBy   String?
+  promotedAt  DateTime?
+  createdAt   DateTime   @default(now())
+  @@unique([name, version])
+  @@index([name, stage])
+}
+
+model TrainingExample {
+  id          String   @id @default(uuid())
+  projectId   String
+  messageId   String
+  label       MessageCategory
+  entities    Json?
+  taskKey     String?
+  status      TaskStatus?
+  source      String   // human | human_correction | synthetic | public
+  reviewer    String?
+  modelPrediction Json?   // what the model said before correction
+  datasetSplit String?    // train | val | test (by project, never by message)
+  createdAt   DateTime @default(now())
+  @@unique([projectId, messageId, createdAt])
+  @@index([projectId])
+  @@index([source])
+}
+
+// ───────────── Authorized WhatsApp ingestion (Cloud API webhook) ─────────────
+// Maps one WhatsApp conversation (a business-created group id, or a customer's wa_id for 1:1 chats) on one business phone number to a project.
+// Messages from conversations that are NOT mapped here are never stored.
+model WhatsappSource {
+  id              String    @id @default(uuid())
+  projectId       String
+  phoneNumberId   String    // Meta business phone_number_id
+  conversationKey String    // group_id, or the customer's wa_id
+  label           String
+  uploadId        String    // synthetic ChatUpload that owns the messages arriving from this source
+  active          Boolean   @default(true)
+  createdById     String
+  createdAt       DateTime  @default(now())
+  lastEventAt     DateTime?
+  messageCount    Int       @default(0)
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@unique([phoneNumberId, conversationKey])
+  @@index([projectId])
+}
