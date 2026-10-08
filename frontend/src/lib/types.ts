@@ -15,7 +15,10 @@ export interface Overview {
   tasks: Record<TaskStatus, number>; overdue: number; clientPendingOpen: number; messages: number;
   lastAnalysis: { id: string; status: string; stage: string | null; progress: number; finishedAt: string | null } | null;
   openBugs?: number; risksBySeverity?: Record<Severity, number>; needsReview?: number; participants?: number;
+  reliability?: { level: ReliabilityLevel; reasons: string[]; tasks?: number; needsReview?: number; messages?: number };
 }
+export type ReliabilityLevel = 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT';
+export const isShaky = (l?: ReliabilityLevel) => l === 'LOW' || l === 'INSUFFICIENT';
 
 export interface Task {
   id: string; title: string; description?: string | null; status: TaskStatus; priority?: Severity; domain?: string; weight?: number; deadline: string | null;

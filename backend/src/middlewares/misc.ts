@@ -44,9 +44,9 @@ export const upload = () => multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config().MAX_UPLOAD_BYTES, files: 1, fields: 5 },
   fileFilter: (_req, file, cb) => {
-    const ok = /\.txt$/i.test(file.originalname);
+    const ok = /\.(txt|zip)$/i.test(file.originalname);
     if (ok) return cb(null, true);
-    (cb as unknown as (e: Error) => void)(new AppError(415, 'UNSUPPORTED_TYPE', 'Only .txt WhatsApp exports are supported'));
+    (cb as unknown as (e: Error) => void)(new AppError(415, 'UNSUPPORTED_TYPE', 'Only WhatsApp exports (.txt, or the .zip WhatsApp creates) are supported'));
   },
 });
 

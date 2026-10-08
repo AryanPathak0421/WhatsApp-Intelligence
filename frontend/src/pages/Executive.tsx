@@ -1,8 +1,10 @@
 import { AlertOctagon, FolderKanban, Gauge, Hourglass, Users2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SimpleBars } from '../components/charts';
-import { Card, CardHeader, EmptyState, ErrorState, Kpi, PageHeader, ProgressBar, SeverityBadge, Skeleton, StatusBadge, Td, Th } from '../components/ui';
+import ChatUploadCard from '../components/ChatUploadCard';
+import { Badge, Card, CardHeader, EmptyState, ErrorState, Kpi, PageHeader, ProgressBar, SeverityBadge, Skeleton, StatusBadge, Td, Th } from '../components/ui';
 import { fmtDate, pct } from '../lib/format';
+import { isShaky } from '../lib/types';
 import { useExecutive } from '../lib/queries';
 
 export default function Executive() {
@@ -15,7 +17,7 @@ export default function Executive() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {isLoading ? Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-24" />) : <>
           <Kpi label="Total projects" value={t.projects} sub={`${t.active} active`} icon={<FolderKanban className="size-4" />} />
-          <Kpi label="At risk / critical" value={`${t.atRisk} / ${t.critical}`} tone={t.critical ? 'bad' : t.atRisk ? 'warn' : 'ok'} icon={<AlertOctagon className="size-4" />} />
+          <Kpi label="At risk / critical" value={`${t.atRisk} / ${t.critical}`} sub={t.lowConfidence ? `${t.lowConfidence} low-confidence project${t.lowConfidence === 1 ? '' : 's'} not counted` : undefined} tone={t.critical ? 'bad' : t.atRisk ? 'warn' : 'ok'} icon={<AlertOctagon className="size-4" />} />
           <Kpi label="Average progress" value={pct(t.averageProgress, 1)} icon={<Gauge className="size-4" />} />
           <Kpi label="Team engaged" value={t.teamUtilization === null ? '—' : `${t.teamUtilization}%`} sub="people with open work" icon={<Users2 className="size-4" />} />
           <Kpi label="Client pending items" value={t.clientPending} tone={t.clientPending > 5 ? 'warn' : undefined} icon={<Hourglass className="size-4" />} />
@@ -23,6 +25,8 @@ export default function Executive() {
           <Kpi label="Blockers" value={t.blockers} tone={t.blockers ? 'warn' : 'ok'} />
           <Kpi label="Open high risks" value={data.topRisks.length} tone={data.topRisks.length ? 'bad' : 'ok'} /></>}
       </div>
+
+      <ChatUploadCard />
 
       <Card className="mt-5 overflow-hidden">
         <CardHeader title="Project comparison" sub="Spot problem projects quickly — progress and health come from the latest analysis." />
@@ -34,7 +38,7 @@ export default function Executive() {
                 <Td><Link className="font-medium text-brand-600 hover:underline" to={`/p/${p.id}/overview`}>{p.name}</Link></Td>
                 <Td className="muted">{p.client ?? '—'}</Td>
                 <Td>{p.progress === null ? <span className="muted text-xs">Not analysed</span> : <div className="flex min-w-28 items-center gap-2"><div className="min-w-16 flex-1"><ProgressBar value={p.progress} tone={p.progress >= 70 ? 'green' : p.progress >= 40 ? 'brand' : 'amber'} /></div><span className="w-10 text-xs tabular-nums">{pct(p.progress)}</span></div>}</Td>
-                <Td>{p.health ? <div className="flex items-center gap-2"><span className="tabular-nums">{p.health.score}</span><StatusBadge status={p.health.status} /></div> : '—'}</Td>
+                <Td>{p.health ? <div className="flex items-center gap-2"><span className="tabular-nums">{p.health.score}</span>{isShaky(p.reliability) ? <Badge tone="amber" title="Few or low-confidence tasks: this score is only indicative">Low confidence</Badge> : <StatusBadge status={p.health.status} />}</div> : '—'}</Td>
                 <Td>{p.openClientPending}</Td><Td className={p.overdue ? 'font-medium text-red-600 dark:text-red-400' : ''}>{p.overdue}</Td><Td>{p.blocked}</Td><Td>{p.openBugs}</Td><Td className="muted">{fmtDate(p.expectedDelivery)}</Td>
               </tr>))}</tbody></table></div>)}
       </Card>

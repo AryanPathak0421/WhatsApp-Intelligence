@@ -12,6 +12,10 @@ Older endpoints (auth, projects, chat upload, tasks, analytics, reports, overvie
 | `GET /projects/:id/sentiment` | counts, per sender, per day, client sentiment, notable items with cue words | lexicon baseline, labelled as such in `method` |
 | `GET /projects/:id/summaries?kind=daily\|weekly\|monthly&limit=` | hierarchical summaries, newest first, each highlight with `source_message_ids` | 422 for another `kind` |
 
+## Reliability of project numbers
+
+`GET /projects/:id/overview` adds `reliability {level: HIGH|MEDIUM|LOW|INSUFFICIENT, reasons[], tasks, needsReview, messages}` (client viewers: level only). `GET /executive` rows add `reliability`; `totals` adds `lowConfidence` and excludes LOW/INSUFFICIENT projects from `atRisk`, `critical` and `averageProgress`. See `05-ai-nlp-pipeline/RELIABILITY_AND_TASK_QUALITY.md`.
+
 ## Status and health
 
 | Path | Access | Returns |

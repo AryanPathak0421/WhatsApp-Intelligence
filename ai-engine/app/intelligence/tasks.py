@@ -15,6 +15,7 @@ from typing import Optional
 from app.intelligence.roles import CLIENT_SIDE
 from app.intelligence.rules import norm, signals
 from app.intelligence.temporal import extract_deadline
+from app.intelligence.title_quality import title_usable
 from app.intelligence.topics import (ALIASES, _TOKEN2GROUP, tokens as _tokens, find_people, make_title, sentence_from, topic_overlap,
                                      topic_set, vocative_target)
 from app.intelligence.types import Evidence, Msg, Task
@@ -97,7 +98,7 @@ def build_tasks(msgs: list[Msg], roles: dict[str, dict], as_of=None, linker=None
             if prev is not None:
                 title = make_title(re.sub(NEED_OWNER, "", prev.text), [])
                 topic = topic_set(title or prev.text)
-                if topic and title and not any(t.source_message_id == prev.id for t in tasks):
+                if topic and title and title_usable(title, names) and not any(t.source_message_id == prev.id for t in tasks):
                     dl = extract_deadline(m.text, m.ts) or extract_deadline(prev.text, prev.ts)
                     t = Task(id=_tid(prev.id), title=title, topic=topic, assignee=m.sender, created_by=prev.sender,
                              source_message_id=prev.id, created_at=prev.ts, deadline=dl, confidence=0.7, last_touch=m.ts)
@@ -116,7 +117,7 @@ def build_tasks(msgs: list[Msg], roles: dict[str, dict], as_of=None, linker=None
         if sa and not s["done"]:
             title = make_title(m.text[sa.start():], [])
             topic = topic_set(title or sa.group(1))
-            if topic and title and not any(t.assignee == m.sender and topic_overlap(t.topic, topic) >= 0.8 and m.ts - t.created_at < timedelta(days=14) for t in by_assignee.get(m.sender, ())):
+            if topic and title and title_usable(title, names) and not any(t.assignee == m.sender and topic_overlap(t.topic, topic) >= 0.8 and m.ts - t.created_at < timedelta(days=14) for t in by_assignee.get(m.sender, ())):
                 dl = extract_deadline(m.text, m.ts)
                 t = Task(id=_tid(m.id), title=title, topic=topic, assignee=m.sender, created_by=m.sender, source_message_id=m.id,
                          created_at=m.ts, deadline=dl, confidence=0.6, last_touch=m.ts, needs_review=True, review_reasons=["self-announced task (nobody assigned it)"])
@@ -160,7 +161,7 @@ def build_tasks(msgs: list[Msg], roles: dict[str, dict], as_of=None, linker=None
                 if words:
                     title = (" ".join(w.title() for w in dict.fromkeys(words)) + " " + title).strip()
                     topic = topic_set(title)
-            if topic and title and (assignee or role(m.sender) in {"PROJECT_MANAGER", "CLIENT", "CLIENT_REPRESENTATIVE", "SALES", "ADMIN"}):
+            if topic and title and title_usable(title, names) and (assignee or role(m.sender) in {"PROJECT_MANAGER", "CLIENT", "CLIENT_REPRESENTATIVE", "SALES", "ADMIN"}):
                 dl = extract_deadline(m.text, m.ts)
                 dup = next((t for t in reversed(by_assignee.get(assignee, [])) if t.status != "COMPLETED"
                             and topic_overlap(t.topic, topic) >= 0.8 and m.ts - t.created_at < timedelta(days=14)), None)

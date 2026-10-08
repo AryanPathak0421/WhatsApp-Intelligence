@@ -27,6 +27,17 @@ const schema = z.object({
   AUTO_IMPORT_DIR: z.string().min(1).optional(),
   AUTO_IMPORT_INTERVAL_MS: z.coerce.number().default(30_000),
   AUTO_IMPORT_SETTLE_MS: z.coerce.number().default(15_000),
+  // Google Drive import (OAuth, read-only). Disabled unless client id + secret are set. The *_URL overrides exist for tests.
+  GOOGLE_CLIENT_ID: z.string().min(10).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(10).optional(),
+  GOOGLE_REDIRECT_URI: z.string().url().default('http://localhost:4000/api/google/callback'),
+  GOOGLE_DRIVE_ROOT_FOLDER: z.string().min(1).default('WhatsApp Exports'),     // folder NAME (or id) that holds one sub-folder per project
+  GOOGLE_DRIVE_POLL_MS: z.coerce.number().default(60_000),
+  GOOGLE_AUTH_URL: z.string().url().default('https://accounts.google.com/o/oauth2/v2/auth'),
+  GOOGLE_TOKEN_URL: z.string().url().default('https://oauth2.googleapis.com/token'),
+  GOOGLE_API_BASE: z.string().url().default('https://www.googleapis.com'),
+  GOOGLE_REVOKE_URL: z.string().url().default('https://oauth2.googleapis.com/revoke'),
+  FRONTEND_URL: z.string().url().default('http://localhost:5199'),
 });
 
 export type Config = z.infer<typeof schema> & { queueMode: 'bullmq' | 'inline' };

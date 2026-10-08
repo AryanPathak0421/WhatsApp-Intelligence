@@ -37,7 +37,7 @@ export file / Cloud API webhook -> backend (validate, dedupe, store messages) ->
 | Live dashboard events (SSE) with polling fallback | Done, tested | `04` |
 | Health/readiness/queue/AI status endpoints | Done, tested | `02`, `11` |
 | Retention policy, purge, erasure | Done, tested | `09` |
-| Assistant (tools, policy, confirmations, audit, RAG with citations) | Done, tested with doubles and a sandbox backend; real-model bake-off in progress | `07`, `10` |
+| Assistant (tools, policy, confirmations, audit, RAG with citations) | Done, tested with doubles and a sandbox backend; real-model bake-off done: 73% on 37 sandbox cases, 0 safety violations (see 10-evaluation) | `07`, `10` |
 | Voice | Endpointing and endpoint built; **no speech model installed**, unmeasured | `08` |
 | Multi-tenancy | **Not in scope** (single-company decision) | `01/DECISIONS` |
 | RabbitMQ / Kafka | **Not in scope** (BullMQ kept) | `01/DECISIONS` |

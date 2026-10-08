@@ -1,7 +1,9 @@
+import clsx from 'clsx';
 import { AlertTriangle, Bug, CheckCircle2, CircleDashed, Clock3, Gauge, HelpCircle, Hourglass, OctagonAlert, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { COLORS, Donut, SimpleBars, Trend } from '../components/charts';
+import { isShaky } from '../lib/types';
 import { Badge, Button, Card, CardHeader, Drawer, EmptyState, ErrorState, Kpi, PageHeader, ProgressBar, SeverityBadge, Skeleton, StatusBadge } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import { fmtDate, fmtShort, pct, titleCase } from '../lib/format';
@@ -60,7 +62,8 @@ export default function ProjectDashboard() {
 
   const t = o.tasks, pending = t.TODO + t.IN_PROGRESS;
   const analysed = !!o.progress;
-  const tone = healthTone(o.health?.status);
+  const shaky = isShaky(o.reliability?.level);               // few / low-confidence tasks: the headline numbers are indicative only
+  const tone = shaky ? 'gray' : healthTone(o.health?.status);
   const contrib = (perf.data?.developers ?? []).filter((d: any) => d.score !== null).map((d: any) => ({ name: d.person.split(' ')[0], score: d.score, completed: d.completed, assigned: d.assigned }));
   const weeks = (vel.data?.velocity?.weeks ?? []).map((w: any) => ({ week: fmtShort(w.week_ending), tasks: w.tasks, weight: w.weight }));
   const tl = (vel.data?.timeline ?? []).filter((r: any) => r.progress !== null).map((r: any) => ({ date: fmtShort(r.date), progress: r.progress }));
@@ -78,12 +81,22 @@ export default function ProjectDashboard() {
           hint={o.lastAnalysis && o.lastAnalysis.status !== 'COMPLETED' ? `Analysis ${o.lastAnalysis.status.toLowerCase()} — ${o.lastAnalysis.stage ?? ''}` : 'Upload a WhatsApp chat export to see progress, health, risks and more.'}
           action={can('chat:upload') && <Link to={`/p/${projectId}/chat`}><Button variant="primary">Upload a chat</Button></Link>} /></Card>
       ) : (<>
+        {shaky && (
+          <div role="status" className="mb-4 flex flex-wrap items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+            <OctagonAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">Low confidence: treat the percentages below as a rough guide, not a status report.</p>
+              <ul className="muted mt-1 list-disc space-y-0.5 pl-4 text-xs">{(o.reliability?.reasons ?? []).map((r) => <li key={r}>{r}</li>)}</ul>
+              {internal && <p className="muted mt-1 text-xs">Confirming or correcting tasks raises confidence immediately.</p>}
+            </div>
+            {internal && <Link to={`/p/${projectId}/tasks`}><Button size="sm">Review tasks</Button></Link>}
+          </div>)}
         <Card className="overflow-hidden">
           <div className="grid gap-6 p-5 md:grid-cols-[260px_1fr]">
             <div>
               <p className="muted text-xs font-medium uppercase tracking-wide">Project health</p>
-              <div className="mt-2 flex items-end gap-3"><span className="text-5xl font-semibold tabular-nums">{Math.round(o.progress!.overall)}%</span>
-                <Badge tone={tone as any} className="mb-2 text-xs">{titleCase(o.health?.status ?? 'unknown')}</Badge></div>
+              <div className="mt-2 flex items-end gap-3"><span className={clsx('text-5xl font-semibold tabular-nums', shaky && 'opacity-60')}>{Math.round(o.progress!.overall)}%</span>
+                <Badge tone={(shaky ? 'amber' : tone) as any} className="mb-2 text-xs">{shaky ? 'Low confidence' : titleCase(o.health?.status ?? 'unknown')}</Badge></div>
               <p className="muted mt-1 text-xs">Overall completion · health score {o.health?.score}/100</p>
               <ProgressBar value={o.progress!.overall} height={10} tone={tone === 'green' ? 'green' : tone === 'amber' ? 'amber' : 'red'} label="Overall progress" />
             </div>
@@ -99,7 +112,7 @@ export default function ProjectDashboard() {
 
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <Kpi label="Project progress" value={pct(o.progress!.overall)} icon={<Gauge className="size-4" />} />
-          <Kpi label="Health score" value={`${o.health?.score}/100`} tone={tone === 'green' ? 'ok' : tone === 'amber' ? 'warn' : 'bad'} />
+          <Kpi label="Health score" value={`${o.health?.score}/100`} sub={shaky ? 'low confidence' : undefined} tone={shaky ? undefined : tone === 'green' ? 'ok' : tone === 'amber' ? 'warn' : 'bad'} />
           <Kpi label="Completed tasks" value={t.COMPLETED} icon={<CheckCircle2 className="size-4" />} />
           <Kpi label="Pending tasks" value={pending} sub={`${t.IN_PROGRESS} in progress`} icon={<Clock3 className="size-4" />} />
           <Kpi label="Blocked tasks" value={t.BLOCKED} tone={t.BLOCKED ? 'warn' : 'ok'} icon={<OctagonAlert className="size-4" />} />

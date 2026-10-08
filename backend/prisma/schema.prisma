@@ -869,3 +869,30 @@ model WhatsappSource {
   @@unique([phoneNumberId, conversationKey])
   @@index([projectId])
 }
+
+// ───────────── Google Drive import (OAuth, read-only) ─────────────
+// One company = one connection. The refresh token is stored AES-256-GCM encrypted (same field encryption as phone numbers).
+model GoogleConnection {
+  id              String    @id @default("singleton")
+  connectedById   String
+  accountEmail    String?
+  refreshTokenEnc String
+  scope           String
+  status          String    @default("CONNECTED")   // CONNECTED | NEEDS_REAUTH
+  lastSyncAt      DateTime?
+  lastError       String?
+  connectedAt     DateTime  @default(now())
+}
+
+// One row per Drive file already handled (key = Drive file id). A changed md5 means the file was replaced and is imported again (incrementally).
+model DriveImport {
+  fileId       String   @id
+  projectId    String
+  fileName     String
+  md5          String?
+  modifiedTime String?
+  outcome      String   // imported | duplicate | rejected
+  detail       String?
+  importedAt   DateTime @default(now())
+  @@index([projectId, importedAt])
+}

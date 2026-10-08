@@ -7,6 +7,7 @@ import { analyticsRouter } from './controllers/analytics';
 import { authRouter } from './controllers/auth';
 import { chatRouter } from './controllers/chat';
 import { eventsRouter } from './controllers/events';
+import { googleRouter } from './controllers/google';
 import { overviewRouter } from './controllers/overview';
 import { projectsRouter } from './controllers/projects';
 import { reportsRouter } from './controllers/reports';
@@ -32,7 +33,7 @@ export function createApp(queue: JobQueue, log?: (line: string) => void) {
     try { await prisma.$queryRaw`SELECT 1`; res.json({ status: 'ok' }); }
     catch { res.status(503).json({ status: 'degraded', db: false }); }
   });
-  app.use('/api', statusRouter(queue), whatsappRouter(queue), retentionRouter(queue));
+  app.use('/api', statusRouter(queue), whatsappRouter(queue), retentionRouter(queue), googleRouter(queue));
   app.use('/api/auth', authRouter);
   app.use('/api/projects', projectsRouter);
   app.use('/api', chatRouter(queue), tasksRouter, analyticsRouter, reportsRouter, overviewRouter, eventsRouter);

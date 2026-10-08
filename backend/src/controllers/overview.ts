@@ -4,6 +4,7 @@ import { prisma } from '../db';
 import { authenticate, projectAccess, requirePermission } from '../middlewares/auth';
 import { asyncHandler } from '../utils/errors';
 import { can, isAdmin } from '../utils/permissions';
+import { isTrusted, reliabilityFor } from '../services/reliability';
 
 export const overviewRouter = Router();
 overviewRouter.use(authenticate);
@@ -45,7 +46,9 @@ overviewRouter.get('/projects/:id/overview', projectAccess('view'), requirePermi
     prisma.projectProgress.findFirst({ where: { projectId: p.id }, orderBy: { computedAt: 'desc' } }),
     prisma.projectHealth.findFirst({ where: { projectId: p.id }, orderBy: { computedAt: 'desc' } }),
   ]);
+  const rel = await reliabilityFor(p.id);
   res.json({
+    reliability: internal ? rel : { level: rel.level, reasons: [] },
     project: { id: p.id, name: p.name, description: p.description, status: p.status, client: p.client?.name ?? null, manager, startDate: p.startDate,
       expectedDelivery: p.expectedDelivery },
     progress: progress && { overall: progress.overall, development: progress.development, design: progress.design, testing: progress.testing,
@@ -67,17 +70,19 @@ overviewRouter.get('/executive', requirePermission('analytics:view'), asyncHandl
     ]);
     return { id: p.id, name: p.name, client: p.client?.name ?? null, status: p.status, expectedDelivery: p.expectedDelivery,
       progress: progress?.overall ?? null, health, openClientPending: m.clientPendingOpen, overdue: m.overdue, blocked: m.tasks.BLOCKED,
-      openBugs: m.openBugs, highRisks: m.risksBySeverity.HIGH + m.risksBySeverity.CRITICAL, messages: m.messages };
+      openBugs: m.openBugs, highRisks: m.risksBySeverity.HIGH + m.risksBySeverity.CRITICAL, messages: m.messages, reliability: (await reliabilityFor(p.id)).level };
   }));
   const ids = projects.map((p) => p.id);
   const topRisks = await prisma.risk.findMany({ where: { projectId: { in: ids }, isOpen: true, severity: { in: ['HIGH', 'CRITICAL'] } },
     orderBy: [{ score: 'desc' }, { detectedAt: 'desc' }], take: 10, include: { project: { select: { id: true, name: true } } } });
   const assigned = await prisma.task.groupBy({ by: ['assigneeId', 'status'], where: { projectId: { in: ids }, assigneeId: { not: null }, status: { not: 'CANCELLED' } }, _count: true });
   const people = new Set(assigned.map((a) => a.assigneeId)), busy = new Set(assigned.filter((a) => a.status !== 'COMPLETED').map((a) => a.assigneeId));
-  const withProgress = rows.filter((r) => r.progress !== null);
+  const withProgress = rows.filter((r) => r.progress !== null && isTrusted(r.reliability));      // a shaky percentage must not drag the company average
   res.json({
     totals: { projects: rows.length, active: rows.filter((r) => r.status === 'ACTIVE').length,
-      atRisk: rows.filter((r) => r.health?.status === 'AT_RISK').length, critical: rows.filter((r) => ['CRITICAL', 'BLOCKED'].includes(r.health?.status ?? '')).length,
+      atRisk: rows.filter((r) => isTrusted(r.reliability) && r.health?.status === 'AT_RISK').length,
+      critical: rows.filter((r) => isTrusted(r.reliability) && ['CRITICAL', 'BLOCKED'].includes(r.health?.status ?? '')).length,
+      lowConfidence: rows.filter((r) => r.progress !== null && !isTrusted(r.reliability)).length,
       averageProgress: withProgress.length ? Math.round((withProgress.reduce((s, r) => s + r.progress!, 0) / withProgress.length) * 10) / 10 : null,
       clientPending: rows.reduce((s, r) => s + r.openClientPending, 0), overdue: rows.reduce((s, r) => s + r.overdue, 0),
       blockers: rows.reduce((s, r) => s + r.blocked, 0), teamUtilization: people.size ? Math.round((100 * busy.size) / people.size) : null },

@@ -17,4 +17,13 @@ export const TEST_ENV = {
   WHATSAPP_APP_SECRET: 'test-whatsapp-app-secret-0123456789',
   WHATSAPP_VERIFY_TOKEN: 'verify-token-12345',
   WEBHOOK_DEBOUNCE_MS: '150',
+  GOOGLE_CLIENT_ID: 'test-client-id.apps.googleusercontent.com',
+  GOOGLE_CLIENT_SECRET: 'test-client-secret-0123456789',
+  GOOGLE_REDIRECT_URI: 'http://localhost:4000/api/google/callback',
+  GOOGLE_AUTH_URL: 'http://127.0.0.1:19876/auth',
+  GOOGLE_TOKEN_URL: 'http://127.0.0.1:19876/token',
+  GOOGLE_REVOKE_URL: 'http://127.0.0.1:19876/revoke',
+  GOOGLE_API_BASE: 'http://127.0.0.1:19876',
+  GOOGLE_DRIVE_ROOT_FOLDER: 'WhatsApp Exports',
+  FRONTEND_URL: 'http://localhost:5199',
 };

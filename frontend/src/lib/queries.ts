@@ -58,3 +58,11 @@ export const useAutoImport = (enabled = true) => useQuery({ queryKey: ['auto-imp
   enabled: boolean; root: string | null; lastScanAt: string | null; scans: number; intervalMs: number;
   folders: { folder: string; project: string | null; status: 'ok' | 'unknown' | 'ambiguous'; waitingFiles: number }[];
   recent: { at: string; folder: string; file?: string; outcome: string; detail?: string }[] }>('/auto-import/status') });
+
+export interface GoogleStatus {
+  configured: boolean; connected: boolean; needsReauth: boolean; account: string | null; rootFolder: string; pollMs: number; connectedAt: string | null;
+  lastSyncAt: string | null; lastError: string | null;
+  recentImports: { fileName: string; outcome: string; detail?: string | null; importedAt: string }[];
+  recent: { at: string; folder?: string; file?: string; outcome: string; detail?: string }[];
+}
+export const useGoogleStatus = (enabled = true) => useQuery({ queryKey: ['google'], enabled, refetchInterval: 20_000, queryFn: () => get<GoogleStatus>('/google/status') });

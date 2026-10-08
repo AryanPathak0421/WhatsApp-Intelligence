@@ -11,9 +11,11 @@ import { audit, pageParams, upload, validateQuery } from '../middlewares/misc';
 import { JobQueue } from '../queues';
 import { ai } from '../services/aiClient';
 import { encryptBuffer, sha256 } from '../utils/crypto';
+import { extractFirstTxt, ZipError } from '../utils/zipText';
 import { naive } from '../utils/time';
 import { AppError, asyncHandler, badRequest, notFound } from '../utils/errors';
 
+const MAX_EXPORT_BYTES = 200 * 1024 * 1024;     // cap on the text extracted from an uploaded .zip (decompression-bomb guard)
 const HEADER = /^‎?(\[\s*\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4},?\s+\d{1,2}[:.]\d{2}|\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4},?\s+\d{1,2}[:.]\d{2}[^\n]{0,12}?\s[-–])/m;
 
 /** Cheap pre-check before storing anything: plain text, not binary, contains WhatsApp-style message headers. */
@@ -45,7 +47,12 @@ export function chatRouter(queue: JobQueue) {
     asyncHandler(async (req, res) => {
       const pid = req.params.id;
       if (!req.file) throw badRequest('Attach a WhatsApp .txt export in the "file" field');
-      const buf = req.file.buffer;
+      let buf = req.file.buffer;
+      let uploadedName = req.file.originalname;
+      if (/\.zip$/i.test(uploadedName)) {                          // WhatsApp's "Export chat" produces a .zip when media is included: read the chat text out of it
+        try { const x = extractFirstTxt(buf, MAX_EXPORT_BYTES); buf = x.data; uploadedName = path.basename(x.name); }
+        catch (e) { throw new AppError(422, 'INVALID_CHAT', e instanceof ZipError ? e.message : 'The ZIP could not be read'); }
+      }
       if (!looksLikeWhatsApp(buf)) throw new AppError(422, 'INVALID_CHAT', 'This does not look like a WhatsApp chat export (.txt)');
       const hash = sha256(buf);
       const dup = await prisma.chatUpload.findUnique({ where: { projectId_sha256: { projectId: pid, sha256: hash } } });
@@ -56,7 +63,7 @@ export function chatRouter(queue: JobQueue) {
       const storageKey = crypto.randomUUID(); // never derived from the user-supplied name
       await fs.mkdir(config().UPLOAD_DIR, { recursive: true });
       await fs.writeFile(path.join(config().UPLOAD_DIR, storageKey), encryptBuffer(buf), { mode: 0o600 });
-      const safeName = path.basename(req.file.originalname).replace(/[^\w.\- ]/g, '_').slice(0, 120);
+      const safeName = path.basename(uploadedName).replace(/[^\w.\- ]/g, '_').slice(0, 120);
       const up = await prisma.chatUpload.create({ data: { projectId: pid, uploadedById: req.user!.id, fileName: safeName, storageKey, sha256: hash,
         sizeBytes: BigInt(buf.length), status: 'QUEUED', purgeAfter: new Date(Date.now() + config().UPLOAD_TTL_HOURS * 3_600_000) } });
       const job = await prisma.analysisJob.create({ data: { projectId: pid, uploadId: up.id, status: 'QUEUED', stage: 'Uploading', progress: 5 } });

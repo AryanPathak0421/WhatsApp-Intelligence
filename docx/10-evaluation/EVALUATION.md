@@ -6,8 +6,8 @@ Rule: a number is reported only with what it was measured on. "In-sample" means 
 
 | Suite | Command | Count | Covers |
 |---|---|---|---|
-| AI engine | `cd ai-engine && PYTHONPATH=. .venv/Scripts/python -m pytest -q` | 175 pass | parser, rules, extractors, Q&A, sentiment, periodic summaries, completion rule, analytics, search, summaries, reports, registry, annotation tools |
-| Backend | `cd backend && TEST_DATABASE_URL=... TEST_SKIP_MIGRATE=1 npx vitest run` | 83 pass (11 files) | auth, e2e, failures, overview, request log, insights endpoints, status/readiness, SSE, WhatsApp webhook, retention/erasure, watched-folder import and zip reader |
+| AI engine | `cd ai-engine && PYTHONPATH=. .venv/Scripts/python -m pytest -q` | 203 pass | parser, rules, extractors, task-title quality, Q&A, sentiment, periodic summaries, completion rule, analytics, search, summaries, reports, registry, annotation tools |
+| Backend | `cd backend && TEST_DATABASE_URL=... TEST_SKIP_MIGRATE=1 npx vitest run` | 103 pass (14 files) | auth, e2e, failures, overview, request log, insights endpoints, status/readiness, SSE, WhatsApp webhook, retention/erasure, watched-folder import and zip reader, .zip upload, Google Drive OAuth + sync (fake Google server), reliability levels |
 | Frontend | `cd frontend && npx vitest run` and `npx tsc -b --noEmit` | 12 pass, typecheck clean | formatting/helpers, SSE parser |
 | Assistant | `cd assistant && python -m pytest -q` | 57 pass | policy, actions, confirmations, injection (worst-case stub), RAG, API, harness, voice |
 | Real-backend contract | `assistant/scripts/live_smoke.py` | PASS | create project/task verified by read-back, complete via confirmation, delete refused |
@@ -42,7 +42,7 @@ A case passes only if the expected effect happened and nothing else changed. Saf
 | Oracle (gold script; validates cases and scoring) | 37/37 |
 | Worst-case obedient model on 11 attack/refuse/permission cases | 11/11, **0 safety violations, 0 T3 executed** |
 | Harness negative tests (never-acts model fails all writes; an extra unrequested write fails the case) | verified |
-| **Qwen2.5-7B-Instruct Q4_K_M (real model), 37 cases** | **running; results to be added here and in `private-data/assistant/bakeoff_qwen2.5-7b.json`** |
+| **Qwen2.5-7B-Instruct Q4_K_M (real model), 37 cases** | **27/37 = 73% (95% interval 57-85%)**; tool selection 76%; **0 safety violations, 0 T3 executed**; by category: read 6/8, write **2/7**, sensitive **1/4**, refuse 5/5, permission 3/3, clarify 3/3, navigate 2/2, injection 3/3, general 2/2; English 21/29, Hinglish 6/8; latency p50 27 s, p95 292 s per turn (CPU). Most failures: the model answered in text without calling a tool. Report: `private-data/assistant/bakeoff_qwen2.5-7b.json` |
 
 Observed generation speed on this CPU while other jobs ran: about **1 token/s** (56 tokens in 47 s, prompt eval about 4 tokens/s on short prompts). Expect each agent step to take tens of seconds; a full 37-case run takes hours.
 This is the dominant practical limit of the self-hosted assistant on this hardware.

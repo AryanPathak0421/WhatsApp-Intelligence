@@ -17,10 +17,11 @@ import path from 'node:path';
 import { config } from '../config';
 import { prisma } from '../db';
 import { JobQueue } from '../queues';
-import { importChatBuffer } from './importer';
-import { extractFirstTxt, ZipError } from '../utils/zipText';
+import { ingestExport, MAX_EXPORT_BYTES } from './exportIngest';
+import { folderNameFor, listProjects } from './projectFolders';
 
-const MAX_BYTES = 200 * 1024 * 1024;
+export { folderNameFor };
+
 const EXT = /\.(txt|zip)$/i;
 const IGNORE = /^(\.|~\$|desktop\.ini$|thumbs\.db$)|\.(tmp|crdownload|part|gdoc|gsheet|lnk)$/i;
 
@@ -28,21 +29,6 @@ export interface AutoImportEvent { at: string; folder: string; file?: string; ou
 const state = { enabled: false, root: '', lastScanAt: null as string | null, scans: 0, running: false, events: [] as AutoImportEvent[], seen: new Map<string, string>(), warned: new Set<string>() };
 
 const record = (e: Omit<AutoImportEvent, 'at'>) => { state.events.unshift({ at: new Date().toISOString(), ...e }); state.events.length = Math.min(state.events.length, 100); };
-
-/** Windows-safe folder name for a project (the characters \ / : * ? " < > | are not allowed in file names). */
-export const folderNameFor = (projectName: string) => projectName.replace(/[\\/:*?"<>|]/g, '_').replace(/[. ]+$/, '').trim() || 'project';
-
-async function listProjects() {
-  const projects = await prisma.project.findMany({ select: { id: true, name: true, managerId: true }, orderBy: { createdAt: 'asc' } });
-  const byFolder = new Map<string, typeof projects>();
-  for (const p of projects) { const k = folderNameFor(p.name).toLowerCase(); byFolder.set(k, [...(byFolder.get(k) ?? []), p]); }
-  return { projects, byFolder };
-}
-
-async function uploaderFor(managerId: string | null): Promise<string | null> {
-  if (managerId) return managerId;
-  return (await prisma.user.findFirst({ where: { role: { in: ['SUPER_ADMIN', 'ADMIN'] }, isActive: true }, orderBy: { createdAt: 'asc' }, select: { id: true } }))?.id ?? null;
-}
 
 async function move(dir: string, file: string, sub: 'imported' | 'rejected', reason?: string) {
   const target = path.join(dir, sub);
@@ -77,19 +63,12 @@ export async function scanOnce(queue: JobQueue, root = state.root, settleMs = co
       const sig = `${st.size}:${st.mtimeMs}`;
       if (state.seen.get(full) !== sig) { state.seen.set(full, sig); continue; }   // first sight, or the file is still changing: look again next scan
       if (Date.now() - st.mtimeMs < settleMs) continue;                            // modified moments ago: a sync may still be writing it
-      if (st.size === 0 || st.size > MAX_BYTES) { await move(dir, f.name, 'rejected', st.size ? 'File is larger than 200 MB' : 'File is empty'); record({ folder, file: f.name, outcome: 'rejected', detail: st.size ? 'too large' : 'empty' }); handled++; continue; }
-      let buf: Buffer = await fs.readFile(full);
-      let nameInside = f.name;
-      if (/\.zip$/i.test(f.name)) {
-        try { const x = extractFirstTxt(buf, MAX_BYTES); buf = x.data; nameInside = path.basename(x.name); }
-        catch (e) { const why = e instanceof ZipError ? e.message : 'The ZIP could not be read'; await move(dir, f.name, 'rejected', why); record({ folder, file: f.name, outcome: 'rejected', detail: why }); handled++; continue; }
-      }
-      const userId = await uploaderFor(project.managerId);
-      if (!userId) { record({ folder, file: f.name, outcome: 'skipped', detail: 'no active admin/manager to attribute the import to' }); continue; }
-      const out = await importChatBuffer({ projectId: project.id, userId, buffer: buf, fileName: nameInside, queue, source: `watched-folder:${folder}` });
-      if (out.status === 'busy') { record({ folder, file: f.name, outcome: 'waiting', detail: 'an analysis is running for this project; will retry' }); continue; }
-      if (out.status === 'invalid') { await move(dir, f.name, 'rejected', out.reason); record({ folder, file: f.name, outcome: 'rejected', detail: out.reason }); }
-      else { await move(dir, f.name, 'imported'); record({ folder, file: f.name, outcome: out.status === 'queued' ? 'imported' : 'duplicate', detail: out.status === 'queued' ? `analysis job ${out.jobId}` : 'identical file was already imported' }); }
+      if (st.size > MAX_EXPORT_BYTES) { await move(dir, f.name, 'rejected', 'File is larger than 200 MB'); record({ folder, file: f.name, outcome: 'rejected', detail: 'too large' }); handled++; continue; }
+      const out = await ingestExport({ project, fileName: f.name, data: await fs.readFile(full), queue, source: `watched-folder:${folder}` });
+      if (out.kind === 'waiting' || out.kind === 'skipped') { record({ folder, file: f.name, outcome: out.kind, detail: out.detail }); continue; }
+      if (out.kind === 'rejected') await move(dir, f.name, 'rejected', out.detail);
+      else await move(dir, f.name, 'imported');
+      record({ folder, file: f.name, outcome: out.kind, detail: out.detail });
       state.seen.delete(full);
       handled++;
     }

@@ -47,7 +47,7 @@ Floating panel; shows sources used (live data / cited documents / general knowle
 navigation events. Not implemented: streaming responses, stop/regenerate, markdown rendering, chat history persistence, file upload in the panel.
 
 ## Real-model status
-Qwen2.5-7B-Instruct (Q4_K_M, 4.68 GB) is downloaded and served by llama.cpp (`llama-server --jinja`). A 37-case bake-off is running; results go in `10-evaluation/EVALUATION.md` when finished.
+Qwen2.5-7B-Instruct (Q4_K_M, 4.68 GB) is downloaded and served by llama.cpp (`llama-server --jinja`). The 37-case bake-off finished: 27/37 (73%), 0 safety violations; writes (2/7) and confirmations (1/4) are the weak spots; see `10-evaluation/EVALUATION.md`.
 The dev assistant process still points at a rule-based mock until restarted with `LLM_BASE_URL=http://localhost:8081/v1` (`scripts/dev/dev-up.ps1` does this).
 
 ## Tests
