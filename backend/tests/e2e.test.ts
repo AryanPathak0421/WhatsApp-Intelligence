@@ -1,11 +1,8 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db';
-import { purgeExpiredUploads } from '../src/services/analysis';
 import { FULL, PART1 } from './fixtures';
-import { bootstrapAdmin, createUser, makeCtx, resetDb, Session, uploadChat, waitJob } from './helpers';
+import { bootstrapAdmin, createUser, makeCtx, resetDb, seedChat, Session, waitJob } from './helpers';
 
 const ctx = makeCtx();
 let admin: Session, pm: Session, dev: Session, sales: Session, client: Session, outsider: Session;
@@ -30,44 +27,22 @@ afterAll(async () => { await ctx.queue.close(); await prisma.$disconnect(); });
 
 const get = (u: Session, url: string) => request(ctx.app).get(url).set(u.auth);
 
-describe('upload validation', () => {
-  it('rejects wrong extension, binary, empty and non-WhatsApp text', async () => {
-    expect((await uploadChat(ctx, pm.auth, projectId, PART1, 'chat.pdf')).status).toBe(415);
-    expect((await uploadChat(ctx, pm.auth, projectId, Buffer.from([0, 1, 2, 3, 0, 0]))).status).toBe(422);
-    expect((await uploadChat(ctx, pm.auth, projectId, '')).status).toBe(422);
-    const r = await uploadChat(ctx, pm.auth, projectId, 'hello world, this is not a chat\njust text\n');
-    expect(r.status).toBe(422);
-    expect(r.body.error.code).toBe('INVALID_CHAT');
+describe('analysis pipeline', () => {
+  it('re-analysis needs edit access, and a project without messages cannot be analysed', async () => {
+    expect((await request(ctx.app).post(`/api/projects/${projectId}/chat/reanalyze`).set(pm.auth)).status).toBe(400);
+    expect((await request(ctx.app).post(`/api/projects/${projectId}/chat/reanalyze`).set(client.auth)).status).toBe(403);
+    expect((await request(ctx.app).post(`/api/projects/${projectId}/chat/reanalyze`).set(outsider.auth)).status).toBe(404);
   });
-  it('enforces the size limit', async () => {
-    const big = Buffer.alloc(3 * 1024 * 1024, 'a');
-    expect((await uploadChat(ctx, pm.auth, projectId, big)).status).toBe(413);
-  });
-  it('only users with upload permission and edit access can upload', async () => {
-    expect((await uploadChat(ctx, dev.auth, projectId, PART1)).status).toBe(403);
-    expect((await uploadChat(ctx, client.auth, projectId, PART1)).status).toBe(403);
-    expect((await uploadChat(ctx, outsider.auth, projectId, PART1)).status).toBe(404); // not a member -> project does not exist for them
-    expect(await prisma.chatUpload.count()).toBe(0);
-  });
-});
 
-describe('import pipeline', () => {
   let job1: string;
   it('returns 202 immediately and reports stage/progress, then completes', async () => {
-    const r = await uploadChat(ctx, pm.auth, projectId, PART1, '../../evil name.txt');
+    const r = await seedChat(ctx, pm.auth, projectId, PART1);
     expect(r.status).toBe(202);
     job1 = r.body.jobId;
     const early = (await get(pm, `/api/analysis/${job1}`)).body;
     expect(['QUEUED', 'RUNNING', 'COMPLETED']).toContain(early.status);
     const done = await waitJob(ctx, pm.auth, job1);
     expect(done).toMatchObject({ status: 'COMPLETED', progress: 100, stage: 'Completed', error: null });
-    const up = await prisma.chatUpload.findFirstOrThrow({ where: { projectId } });
-    expect(up.fileName).toBe('evil name.txt'.replace(/[^\w.\- ]/g, '_')); // path components stripped
-    expect(up.messageCount).toBe(11);
-    expect(up.newMessageCount).toBe(11);
-    expect(up.storageKey).toMatch(/^[0-9a-f-]{36}$/);
-    const onDisk = await fs.readFile(path.join(process.env.UPLOAD_DIR!, up.storageKey));
-    expect(onDisk.toString('utf8')).not.toContain('Razorpay'); // encrypted at rest
   });
 
   it('stores original messages untouched and masks nothing it should not', async () => {
@@ -113,29 +88,16 @@ describe('import pipeline', () => {
     expect(tl[0].type).toBe('START');
   });
 
-  it('detects the same chat as a duplicate and creates nothing', async () => {
-    const before = await prisma.chatMessage.count({ where: { projectId } });
-    const r = await uploadChat(ctx, pm.auth, projectId, PART1);
-    expect(r.status).toBe(409);
-    expect(r.body.error.code).toBe('DUPLICATE_UPLOAD');
-    expect(r.body.error.message).toBe('This chat appears to have already been imported.');
-    expect(await prisma.chatMessage.count({ where: { projectId } })).toBe(before);
-    expect(await prisma.chatUpload.count({ where: { projectId } })).toBe(1);
-  });
-
-  it('incremental import appends only new messages and does not duplicate tasks', async () => {
+  it('new messages are appended once and re-analysis does not duplicate tasks', async () => {
     const tasksBefore = await prisma.task.count({ where: { projectId } });
     const humanEdit = await prisma.task.findFirstOrThrow({ where: { projectId, title: { contains: 'login' } } });
     // human correction that must survive re-analysis
     const edit = await request(ctx.app).put(`/api/tasks/${humanEdit.id}`).set(pm.auth).send({ priority: 'CRITICAL', deadline: '2026-12-31T00:00:00Z' });
     expect(edit.status).toBe(200);
 
-    const r = await uploadChat(ctx, pm.auth, projectId, FULL, 'chat-updated.txt');
+    const r = await seedChat(ctx, pm.auth, projectId, FULL);
     expect(r.status).toBe(202);
     expect((await waitJob(ctx, pm.auth, r.body.jobId)).status).toBe('COMPLETED');
-    const up = await prisma.chatUpload.findFirstOrThrow({ where: { projectId, fileName: 'chat-updated.txt' } });
-    expect(up.messageCount).toBe(23);
-    expect(up.newMessageCount).toBe(12); // only the genuinely new messages
     expect(await prisma.chatMessage.count({ where: { projectId, isSystem: false } })).toBe(23);
     const tasks = await prisma.task.findMany({ where: { projectId } });
     expect(tasks.length).toBeGreaterThan(tasksBefore); // new tasks from the new messages
@@ -171,22 +133,6 @@ describe('import pipeline', () => {
     const msg = await prisma.chatMessage.findFirstOrThrow({ where: { projectId }, orderBy: { seq: 'asc' } });
     expect(msg.originalText).toBe('Amit, please integrate Razorpay by Friday.');
   });
-
-  it('phone numbers are encrypted at rest and masked for non-managers', async () => {
-    const chat = '[01/11/2026, 10:00 AM] +91 98765 43210: Hello team please check\n[01/11/2026, 10:05 AM] Rahul: Amit, please deploy the server by Friday.\n';
-    const pr = (await request(ctx.app).post('/api/projects').set(pm.auth).send({ name: 'Phone project' })).body.id;
-    const up = await uploadChat(ctx, pm.auth, pr, chat);
-    await waitJob(ctx, pm.auth, up.body.jobId);
-    const raw = await prisma.chatParticipant.findFirstOrThrow({ where: { projectId: pr, displayName: { contains: '98765' } } });
-    expect(raw.phone!.startsWith('enc1:')).toBe(true);
-    expect(raw.phone).not.toContain('98765');
-    await request(ctx.app).post(`/api/projects/${pr}/members`).set(pm.auth).send({ userId: sales.user.id });
-    const asSales = (await get(sales, `/api/projects/${pr}/team`)).body.items.find((p: any) => p.name.includes('98765'));
-    expect(asSales.phone).toMatch(/•/);
-    expect(asSales.phone).not.toContain('98765');
-    const asPm = (await get(pm, `/api/projects/${pr}/team`)).body.items.find((p: any) => p.name.includes('98765'));
-    expect(asPm.phone).toBe('+919876543210');
-  });
 });
 
 describe('RBAC and project isolation', () => {
@@ -204,7 +150,7 @@ describe('RBAC and project isolation', () => {
   });
 
   it('admins see all projects', async () => {
-    expect((await get(admin, '/api/projects')).body.items.length).toBeGreaterThanOrEqual(3);
+    expect((await get(admin, '/api/projects')).body.items.length).toBeGreaterThanOrEqual(2);
   });
 
   it('team member can only change task status, and only with edit access', async () => {
@@ -241,7 +187,7 @@ describe('RBAC and project isolation', () => {
     expect((await request(ctx.app).delete(`/api/projects/${otherProject}`).set(outsider.auth)).status).toBe(403);
     expect((await get(pm, '/api/audit')).status).toBe(403);
     const a = (await get(admin, '/api/audit?limit=200')).body.items.map((x: any) => x.action);
-    for (const act of ['LOGIN', 'UPLOAD', 'CREATE_PROJECT', 'CHANGE_MEMBER', 'VIEW_SENSITIVE', 'UPDATE_TASK', 'OVERRIDE_AI', 'REANALYZE']) expect(a).toContain(act);
+    for (const act of ['LOGIN', 'CREATE_PROJECT', 'CHANGE_MEMBER', 'VIEW_SENSITIVE', 'UPDATE_TASK', 'OVERRIDE_AI', 'REANALYZE']) expect(a).toContain(act);
   });
 
   it('paginates task and message lists', async () => {
@@ -314,16 +260,7 @@ describe('manual tasks, client pending edits, reports, search, notifications', (
   });
 });
 
-describe('cleanup policy', () => {
-  it('purges expired encrypted upload files but keeps the messages', async () => {
-    const up = await prisma.chatUpload.findFirstOrThrow({ where: { projectId } });
-    await prisma.chatUpload.update({ where: { id: up.id }, data: { purgeAfter: new Date(Date.now() - 1000) } });
-    expect(await purgeExpiredUploads()).toBeGreaterThanOrEqual(1);
-    await expect(fs.access(path.join(process.env.UPLOAD_DIR!, up.storageKey))).rejects.toThrow();
-    expect(await prisma.chatMessage.count({ where: { projectId } })).toBeGreaterThan(0);
-    expect((await prisma.chatUpload.findUniqueOrThrow({ where: { id: up.id } })).storageKey).toBe('');
-  });
-
+describe('project deletion', () => {
   it('deleting a project removes all of its data and nothing else', async () => {
     const before = await prisma.chatMessage.count({ where: { projectId: { not: projectId } } });
     expect((await request(ctx.app).delete(`/api/projects/${projectId}`).set(admin.auth)).status).toBe(204);

@@ -2,7 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db';
 import { FULL } from './fixtures';
-import { bootstrapAdmin, createUser, makeCtx, resetDb, Session, uploadChat, waitJob } from './helpers';
+import { bootstrapAdmin, createUser, makeCtx, resetDb, seedChat, Session, waitJob } from './helpers';
 
 const ctx = makeCtx();
 let admin: Session, pm: Session, client: Session, outsider: Session, pA: string, pB: string;
@@ -15,7 +15,7 @@ beforeAll(async () => {
   pA = (await request(ctx.app).post('/api/projects').set(pm.auth).send({ name: 'Alpha', clientName: 'Acme' })).body.id;
   pB = (await request(ctx.app).post('/api/projects').set(outsider.auth).send({ name: 'Beta' })).body.id;
   await request(ctx.app).post(`/api/projects/${pA}/members`).set(pm.auth).send({ userId: client.user.id });
-  const up = await uploadChat(ctx, pm.auth, pA, FULL);
+  const up = await seedChat(ctx, pm.auth, pA, FULL);
   await waitJob(ctx, pm.auth, up.body.jobId);
 });
 afterAll(async () => { await ctx.queue.close(); await prisma.$disconnect(); });

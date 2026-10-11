@@ -1,5 +1,5 @@
 /**
- * Analysis job runner: parse -> store messages -> analyze (all project messages) -> index -> persist -> notify.
+ * Analysis job runner: analyze all project messages (written by the in-app chat) -> index -> persist -> notify.
  *
  * Invariants
  *  - ChatMessage rows are write-once (originalText never updated).
@@ -18,8 +18,6 @@ import { events } from '../events/bus';
 import { AiError, AiMessage, ai } from './aiClient';
 
 export const STAGES = {
-  PARSING: { label: 'Parsing', progress: 15 },
-  STORING: { label: 'Processing messages', progress: 30 },
   TEAM: { label: 'Identifying team', progress: 38 },
   ANALYZING: { label: 'Analyzing project', progress: 45 },
   INDEXING: { label: 'Indexing messages', progress: 75 },
@@ -40,28 +38,16 @@ async function setStage(jobId: string, stage: { label: string; progress: number 
 }
 
 export async function runAnalysisJob(jobId: string): Promise<void> {
-  const job = await prisma.analysisJob.findUnique({ where: { id: jobId }, include: { upload: true, project: true } });
+  const job = await prisma.analysisJob.findUnique({ where: { id: jobId }, include: { project: true } });
   if (!job) return;
   const pid = job.projectId;
   try {
-    await prisma.analysisJob.update({ where: { id: jobId }, data: { status: 'RUNNING', startedAt: new Date(), stage: 'Parsing', progress: 5, error: null } });
-    if (job.upload) {
-      await prisma.chatUpload.update({ where: { id: job.upload.id }, data: { status: 'PROCESSING' } });
-      await setStage(jobId, STAGES.PARSING);
-      const plain = decryptBuffer(await fs.readFile(path.join(config().UPLOAD_DIR, job.upload.storageKey)));
-      const parsed = await ai.parse(plain, job.upload.fileName);
-      await setStage(jobId, STAGES.STORING);
-      const added = await storeMessages(pid, job.upload.id, parsed.messages);
-      await prisma.chatUpload.update({ where: { id: job.upload.id }, data: {
-        messageCount: parsed.messages.length, newMessageCount: added,
-        firstMessageAt: d(parsed.messages[0]?.timestamp), lastMessageAt: d(parsed.messages.at(-1)?.timestamp),
-        parseReport: parsed.report as Prisma.InputJsonValue } });
-    }
+    await prisma.analysisJob.update({ where: { id: jobId }, data: { status: 'RUNNING', startedAt: new Date(), stage: 'Starting', progress: 5, error: null } });
     await setStage(jobId, STAGES.TEAM);
     const messages = await prisma.chatMessage.findMany({
       where: { projectId: pid, isSystem: false }, orderBy: [{ timestamp: 'asc' }, { seq: 'asc' }],
       select: { id: true, text: true, timestamp: true, seq: true, sender: { select: { displayName: true } } } });
-    if (!messages.length) throw new AiError('INVALID_CHAT', 'The chat contains no messages');
+    if (!messages.length) throw new AiError('INVALID_CHAT', 'This project has no messages yet');
     const roleRows = await prisma.chatParticipant.findMany({ where: { projectId: pid, roleSource: 'admin' } });
     const aiMsgs = messages.map((m, i) => ({ id: unscope(pid, m.id), text: m.text, sender: m.sender?.displayName ?? null, ts: naive(m.timestamp)!, index: i }));
 
@@ -82,44 +68,13 @@ export async function runAnalysisJob(jobId: string): Promise<void> {
     await setStage(jobId, STAGES.REPORT);
     await notifyNew(pid, fresh);
     await setStage(jobId, STAGES.DONE, { status: 'COMPLETED', finishedAt: new Date() });
-    if (job.upload) await prisma.chatUpload.update({ where: { id: job.upload.id }, data: { status: 'COMPLETED' } });
   } catch (e) {
     const safe = e instanceof AiError ? e.safeMessage : 'Analysis failed. Please try again or contact an administrator.';
     if (!(e instanceof AiError)) console.error('[analysis] job failed', jobId, e);
     await prisma.analysisJob.update({ where: { id: jobId }, data: { status: 'FAILED', error: safe, finishedAt: new Date() } }).catch(() => {});
     events.publish({ type: 'analysis.failed', projectId: pid, jobId });
-    if (job.upload) await prisma.chatUpload.update({ where: { id: job.upload.id }, data: { status: 'FAILED', errorMessage: safe } }).catch(() => {});
     if (e instanceof AiError && e.kind === 'UNAVAILABLE') throw e; // lets BullMQ retry transient failures
   }
-}
-
-/** Insert only messages we have not seen (idempotent; supports incremental / overlapping exports). */
-async function storeMessages(pid: string, uploadId: string, msgs: AiMessage[]): Promise<number> {
-  // participants (phone encrypted at rest)
-  const byName = new Map<string, string | null>();
-  for (const m of msgs) if (m.senderName && !byName.has(m.senderName)) byName.set(m.senderName, m.senderPhone);
-  const existing = await prisma.chatParticipant.findMany({ where: { projectId: pid } });
-  const have = new Set(existing.map((p) => p.displayName));
-  const fresh = [...byName].filter(([n]) => !have.has(n));
-  if (fresh.length) {
-    await prisma.chatParticipant.createMany({ skipDuplicates: true,
-      data: fresh.map(([displayName, phone]) => ({ projectId: pid, displayName, phone: phone ? encryptField(phone) : null })) });
-  }
-  const ids = new Map((await prisma.chatParticipant.findMany({ where: { projectId: pid }, select: { id: true, displayName: true } })).map((p) => [p.displayName, p.id]));
-  const last = await prisma.chatMessage.aggregate({ where: { projectId: pid }, _max: { seq: true } });
-  let seq = (last._max.seq ?? -1) + 1;
-  let added = 0;
-  for (let i = 0; i < msgs.length; i += 1000) {
-    const batch = msgs.slice(i, i + 1000);
-    const known = new Set((await prisma.chatMessage.findMany({ where: { id: { in: batch.map((m) => scope(pid, m.messageId)) } }, select: { id: true } })).map((r) => r.id));
-    const rows = batch.filter((m) => !known.has(scope(pid, m.messageId))).map((m) => ({
-      id: scope(pid, m.messageId), projectId: pid, uploadId, seq: seq++, senderId: m.senderName ? ids.get(m.senderName) ?? null : null,
-      timestamp: wall(m.timestamp)!, originalText: m.rawText, text: m.message,
-      messageType: m.messageType.toUpperCase() as 'TEXT' | 'MEDIA' | 'SYSTEM' | 'DELETED', isSystem: m.isSystemMessage, isMedia: m.isMedia,
-      isDeleted: m.isDeleted, isEdited: m.isEdited, isForwarded: m.isForwarded, urls: m.urls }));
-    if (rows.length) added += (await prisma.chatMessage.createMany({ data: rows, skipDuplicates: true })).count;
-  }
-  return added;
 }
 
 export interface FreshItems { clientPending: any[]; risks: any[]; requirementChanges: any[]; conflicts: any[] }
@@ -257,13 +212,4 @@ async function notifyNew(pid: string, f: FreshItems) {
   if (rows.length) events.publish({ type: 'notification.created', projectId: pid });
 }
 
-/** Retention policy: delete encrypted upload files after UPLOAD_TTL_HOURS (messages stay in the DB). */
-export async function purgeExpiredUploads(now = new Date()): Promise<number> {
-  const due = await prisma.chatUpload.findMany({ where: { purgeAfter: { lte: now }, storageKey: { not: '' } } });
-  for (const u of due) {
-    await fs.rm(path.join(config().UPLOAD_DIR, u.storageKey), { force: true });
-    await prisma.chatUpload.update({ where: { id: u.id }, data: { storageKey: '', purgeAfter: null } });
-  }
-  return due.length;
-}
 export { decryptField };

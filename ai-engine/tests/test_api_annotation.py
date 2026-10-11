@@ -16,19 +16,6 @@ def client(tmp_path, monkeypatch):
     return TestClient(main.app)
 
 
-def test_parse_endpoint(client):
-    r = client.post("/ai/parse", files={"file": ("chat.txt", io.BytesIO(CHAT.encode()))})
-    assert r.status_code == 200
-    j = r.json()
-    assert j["report"]["messages"] == 2 and j["messages"][0]["senderName"] == "Rahul"
-    assert len(j["fingerprint"]) == 64
-
-
-def test_parse_rejects_bad_type_and_content(client):
-    assert client.post("/ai/parse", files={"file": ("a.pdf", io.BytesIO(b"x"))}).status_code == 415
-    assert client.post("/ai/parse", files={"file": ("a.txt", io.BytesIO(b"hello"))}).status_code == 422
-
-
 def test_annotation_validation_and_history(client):
     base = dict(project_id="p", message_id="m1", message="x", category="TASK", reviewer="me")
     assert client.post("/ai/annotation", json=base).status_code == 200

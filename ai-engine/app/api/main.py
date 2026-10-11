@@ -1,4 +1,5 @@
-"""FastAPI entrypoint. Phase 2 exposes parse + annotation endpoints."""
+"""FastAPI entrypoint. The application calls the JSON endpoints (/ai/analyze/messages, /ai/index, /ai/search ...).
+The .txt file endpoints below are offline evaluation / annotation tools that read the WhatsApp-format benchmark datasets."""
 from __future__ import annotations
 
 import os
@@ -17,8 +18,7 @@ from app.annotation.core import AnnotationIn, AnnotationStore, build_queue
 from app.intelligence.pipeline import analyze
 from app.intelligence.types import Msg
 from app.labels import ACTIVE_CATEGORIES, CATEGORIES, ENTITY_TYPES, TASK_STATUSES
-from app.parsers.whatsapp import (UnsupportedFormatError, WhatsAppParser,
-                                  chat_fingerprint)
+from app.parsers.whatsapp import UnsupportedFormatError, WhatsAppParser   # offline evaluation datasets only
 
 MAX_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", 200 * 1024 * 1024))
 ANNOTATION_FILE = os.getenv("ANNOTATION_FILE", "data/annotated/annotations.jsonl")
@@ -40,50 +40,9 @@ store = AnnotationStore(ANNOTATION_FILE)
 _STATIC = Path(__file__).parent / "static"
 
 
-def _msg_json(m):
-    return {"messageId": m.message_id, "index": m.index, "timestamp": m.timestamp.isoformat(),
-            "senderName": m.sender_name, "senderPhone": m.sender_phone, "message": m.text,
-            "rawText": m.raw_text, "messageType": m.message_type, "isSystemMessage": m.is_system,
-            "isMedia": m.is_media, "mediaKind": m.media_kind, "isDeleted": m.is_deleted,
-            "isEdited": m.is_edited, "isForwarded": m.is_forwarded, "urls": m.urls,
-            "replyContext": m.reply_context}
-
-
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-@app.post("/ai/parse")
-async def parse(file: UploadFile = File(...), limit: int = 0):
-    """Parse an export. ``limit`` > 0 returns only the first N messages (preview)."""
-    if not (file.filename or "").lower().endswith(".txt"):
-        raise HTTPException(415, "Only WhatsApp .txt exports are supported.")
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
-        size = 0
-        while chunk := await file.read(1 << 20):
-            size += len(chunk)
-            if size > MAX_BYTES:
-                os.unlink(tmp.name)
-                raise HTTPException(413, "File too large.")
-            tmp.write(chunk)
-    try:
-        parser = WhatsAppParser()
-        msgs = []
-        for m in parser.parse_file(tmp.name):
-            msgs.append(_msg_json(m))
-            if limit and len(msgs) >= limit:
-                break
-        r = parser.report
-        return {"fingerprint": chat_fingerprint(tmp.name), "messages": msgs,
-                "report": {"messages": r.messages, "dateOrder": r.date_order,
-                           "dateOrderAmbiguous": r.date_order_ambiguous, "clock": r.clock,
-                           "headerStyle": r.header_style, "warnings": r.warnings[:20],
-                           "senders": dict(r.senders)}}
-    except UnsupportedFormatError as e:
-        raise HTTPException(422, str(e))
-    finally:
-        os.unlink(tmp.name)  # temporary upload cleanup
 
 
 _clf_cache: dict = {}

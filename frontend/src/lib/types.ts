@@ -34,3 +34,11 @@ export interface ClientPending { id: string; title: string; type: string; respon
 
 export interface Evidence { task: { id: string; title: string; status: TaskStatus; confidence: number; reviewState: string; statusEvidence: { trace?: { event: string; status: string; message_id: string }[]; reasons?: string[] } | null };
   evidence: { id: string; timestamp: string; sender: string | null; text: string; isEvidence: boolean; context: { id: string; sender: string | null; text: string; timestamp: string }[] }[] }
+
+// ---- in-app chat ----
+export interface RoomRow { id: string; kind: 'GROUP' | 'DIRECT'; name: string; project: { id: string; name: string } | null; memberCount: number; unread: number;
+  lastMessage: { text: string; senderName: string; mine?: boolean; at: string } | null; lastActivity: string }
+export interface RoomDetail { id: string; kind: 'GROUP' | 'DIRECT'; name: string; project: { id: string; name: string } | null; canManage: boolean; analysed: boolean;
+  members: { id: string; name: string; role: Role }[] }
+export interface RoomMsg { id: string; senderId: string; senderName: string; mine: boolean; status?: 'sent' | 'read'; text: string; createdAt: string; replyTo: { id: string; senderName: string; text: string } | null }
+export interface RoomUser { id: string; name: string; role: Role }

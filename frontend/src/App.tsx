@@ -7,6 +7,8 @@ import Login from './pages/Login';
 
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Insights = lazy(() => import('./pages/Insights'));
+const Chat = lazy(() => import('./pages/Chat'));
+const Invite = lazy(() => import('./pages/Invite'));
 const ChatAnalysis = lazy(() => import('./pages/ChatAnalysis'));
 const ClientPending = lazy(() => import('./pages/ClientPending'));
 const Executive = lazy(() => import('./pages/Executive'));
@@ -41,10 +43,13 @@ export default function App() {
     <Suspense fallback={<Fallback />}>
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/invite/:token" element={<Invite />} />
       <Route element={<Protected />}>
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="projects" element={<Projects />} />
+          <Route path="chat" element={<Chat />} />
+          <Route path="chat/:roomId" element={<Chat />} />
           <Route path="settings" element={<Settings />} />
           <Route path="p/:projectId">
             <Route index element={<Navigate to="overview" replace />} />

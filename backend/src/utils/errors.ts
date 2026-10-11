@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
-import { MulterError } from 'multer';
 
 export class AppError extends Error {
   constructor(public status: number, public code: string, message: string, public details?: unknown) {
@@ -20,11 +19,6 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   if (err instanceof ZodError) {
     return res.status(422).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid input',
       details: err.issues.map((i) => ({ path: i.path.join('.'), message: i.message })) } });
-  }
-  if (err instanceof MulterError) {
-    const tooBig = err.code === 'LIMIT_FILE_SIZE';
-    return res.status(tooBig ? 413 : 400).json({ error: { code: tooBig ? 'FILE_TOO_LARGE' : 'UPLOAD_ERROR',
-      message: tooBig ? 'File is too large' : 'Invalid upload' } });
   }
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
     return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Resource not found' } });

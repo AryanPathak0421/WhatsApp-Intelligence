@@ -78,8 +78,8 @@ export default function ProjectDashboard() {
 
       {!analysed ? (
         <Card><EmptyState icon={<CircleDashed className="size-5" />} title="This project hasn’t been analysed yet"
-          hint={o.lastAnalysis && o.lastAnalysis.status !== 'COMPLETED' ? `Analysis ${o.lastAnalysis.status.toLowerCase()} — ${o.lastAnalysis.stage ?? ''}` : 'Upload a WhatsApp chat export to see progress, health, risks and more.'}
-          action={can('chat:upload') && <Link to={`/p/${projectId}/chat`}><Button variant="primary">Upload a chat</Button></Link>} /></Card>
+          hint={o.lastAnalysis && o.lastAnalysis.status !== 'COMPLETED' ? `Analysis ${o.lastAnalysis.status.toLowerCase()} — ${o.lastAnalysis.stage ?? ''}` : 'Start a project group in Team chat. Progress, health, risks and more appear as the team talks.'}
+          action={<Link to="/chat"><Button variant="primary">Open Team chat</Button></Link>} /></Card>
       ) : (<>
         {shaky && (
           <div role="status" className="mb-4 flex flex-wrap items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">

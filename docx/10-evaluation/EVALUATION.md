@@ -6,13 +6,17 @@ Rule: a number is reported only with what it was measured on. "In-sample" means 
 
 | Suite | Command | Count | Covers |
 |---|---|---|---|
-| AI engine | `cd ai-engine && PYTHONPATH=. .venv/Scripts/python -m pytest -q` | 203 pass | parser, rules, extractors, task-title quality, Q&A, sentiment, periodic summaries, completion rule, analytics, search, summaries, reports, registry, annotation tools |
-| Backend | `cd backend && TEST_DATABASE_URL=... TEST_SKIP_MIGRATE=1 npx vitest run` | 103 pass (14 files) | auth, e2e, failures, overview, request log, insights endpoints, status/readiness, SSE, WhatsApp webhook, retention/erasure, watched-folder import and zip reader, .zip upload, Google Drive OAuth + sync (fake Google server), reliability levels |
+| AI engine | `cd ai-engine && PYTHONPATH=. .venv/Scripts/python -m pytest -q` | 201 pass | rules, extractors, task-title quality, Q&A, sentiment, periodic summaries, completion rule, analytics, search, summaries, reports, registry, annotation tools, WhatsApp-format parser (offline evaluation tooling only) |
+| Backend | `cd backend && TEST_DATABASE_URL=... TEST_SKIP_MIGRATE=1 npx vitest run` | 89 pass (12 files) | auth, e2e, failures, overview, request log, insights endpoints, status/readiness, SSE (analysis and chat events), retention/erasure, reliability levels, in-app chat rooms (13), invitations (8) |
 | Frontend | `cd frontend && npx vitest run` and `npx tsc -b --noEmit` | 12 pass, typecheck clean | formatting/helpers, SSE parser |
 | Assistant | `cd assistant && python -m pytest -q` | 57 pass | policy, actions, confirmations, injection (worst-case stub), RAG, API, harness, voice |
 | Real-backend contract | `assistant/scripts/live_smoke.py` | PASS | create project/task verified by read-back, complete via confirmation, delete refused |
 
 The backend tests need a PostgreSQL (the docker `wa_intel_test` database, or the embedded dev server: `scripts/dev/embedded-pg/start.mjs`).
+
+History: before WhatsApp ingestion was removed (2026-10-11, ADR-007) the last recorded counts were AI engine 203 and backend 103 in 14 files. Since then the webhook, watched-folder, zip reader, .zip upload and Google Drive test files were deleted, the engine's `/ai/parse` coverage went with the endpoint, and the in-app chat tests (rooms, invitations) were added.
+
+Sections 2 and 3 below were measured on WhatsApp chat exports used as an **evaluation dataset** (the owner's exported HG chat, hand-written chats in WhatsApp export format); the product itself no longer imports WhatsApp.
 
 ## 2. Classification of messages (rules vs. learned model), one real chat
 
@@ -51,5 +55,5 @@ This is the dominant practical limit of the self-hosted assistant on this hardwa
 See `05-ai-nlp-pipeline`: unit tests on hand-written examples (Q&A 8, sentiment 5 incl. 31 labelled examples at >= 85%, periodic 4). **No independent accuracy measurement on real data exists** for these three.
 
 ## 6. Not yet measured (do not quote any figure)
-Embedding/reranker quality on Hinglish queries, ASR WER/CER, TTS quality, end-to-end voice latency, RAG faithfulness at scale, hallucination rate of the real LLM, load/throughput of the webhook and queue,
+Embedding/reranker quality on Hinglish queries, ASR WER/CER, TTS quality, end-to-end voice latency, RAG faithfulness at scale, hallucination rate of the real LLM, load/throughput of the in-app chat and queue, SMTP delivery rates,
 failure injection (Redis/DB/LLM down) beyond the unit-level cases, golden set of hundreds of cases (37 exist).

@@ -20,7 +20,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <div className="grid size-11 place-items-center rounded-xl bg-brand-600 text-lg font-bold text-white">PI</div>
-          <h1 className="text-xl font-semibold">Project Intelligence</h1><p className="muted text-sm">Turn WhatsApp project chats into structured insight.</p>
+          <h1 className="text-xl font-semibold">Project Intelligence</h1><p className="muted text-sm">Team chat that turns project conversations into structured insight.</p>
         </div>
         <form className="card space-y-4 p-6" noValidate onSubmit={handleSubmit(async (v) => {
           setError('');

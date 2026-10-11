@@ -3,7 +3,7 @@ import { AddressInfo } from 'node:net';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db';
-import { bootstrapAdmin, createUser, makeCtx, resetDb, Session, uploadChat, waitJob } from './helpers';
+import { bootstrapAdmin, createUser, makeCtx, resetDb, seedChat, Session, waitJob } from './helpers';
 
 const CHAT = `[01/10/2026, 10:00 AM] Priya: Rahul, please build the login page by Friday
 [01/10/2026, 10:30 AM] Rahul: login page is done
@@ -65,7 +65,7 @@ describe('live events (SSE)', () => {
     const admins = await openStream(admin.auth);
     const other = await openStream(outsider.auth);
     expect(mine.status).toBe(200);
-    const up = await uploadChat(ctx, pm.auth, pid, CHAT);
+    const up = await seedChat(ctx, pm.auth, pid, CHAT);
     await waitJob(ctx, pm.auth, up.body.jobId);
     await until(() => mine.events.some((e) => e.event === 'analysis.completed'));
     await until(() => admins.events.some((e) => e.event === 'analysis.completed'));

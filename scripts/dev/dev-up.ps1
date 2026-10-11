@@ -44,8 +44,6 @@ $env:NODE_ENV = 'development'; $env:PORT = '4000'
 $env:DATABASE_URL = 'postgresql://wa:wa_dev_pw@localhost:15433/wa_intel_dev'
 $env:QUEUE_MODE = 'inline'; $env:AI_ENGINE_URL = 'http://localhost:8000'; $env:CORS_ORIGIN = 'http://localhost:5199'
 $env:UPLOAD_DIR = Join-Path $data 'uploads'
-# watched folder for exported chats; to use Google Drive for desktop put e.g. AUTO_IMPORT_DIR=G:\My Drive\WhatsApp Exports in private-data/dev.env
-if (-not $env:AUTO_IMPORT_DIR) { $env:AUTO_IMPORT_DIR = Join-Path $data 'inbox' }
 Start-Svc 'backend' 4000 $node @('node_modules/tsx/dist/cli.mjs', 'src/index.ts') (Join-Path $root 'backend')
 
 # --- 4. language model server (optional) ---

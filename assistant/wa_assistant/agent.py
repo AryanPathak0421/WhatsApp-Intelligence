@@ -74,11 +74,21 @@ class Agent:
         return msgs
 
     def _system(self, app_state: Optional[dict]) -> str:
-        extra = ""
-        if app_state:
-            safe = {k: app_state[k] for k in ("page", "project_id", "filters") if k in app_state}
-            extra = "\n\nCurrent screen (provided by the interface, not by documents): " + json.dumps(safe, ensure_ascii=False)
-        return SYSTEM_PROMPT + extra
+        return SYSTEM_PROMPT                                    # constant: the model server can reuse its cached prefix (system + tools)
+
+    @staticmethod
+    def _with_screen(msgs: list[dict], app_state: Optional[dict]) -> list[dict]:
+        """The current screen goes at the END (after the first user turn's text of this request), so it never breaks the cached prefix."""
+        if not app_state or not msgs:
+            return msgs
+        safe = {k: app_state[k] for k in ("page", "project_id", "filters") if k in app_state}
+        note = "\n\n[Current screen, provided by the interface, not by documents: " + json.dumps(safe, ensure_ascii=False) + "]"
+        out = list(msgs)
+        for i in range(len(out) - 1, -1, -1):
+            if out[i]["role"] == "user" and isinstance(out[i].get("content"), str):
+                out[i] = {**out[i], "content": out[i]["content"] + note}
+                break
+        return out
 
     def _log(self, session: Session, turn_id: str, event: str, **f):
         self.audit.write(event, user_id=session.user_id, session_id=session.id, turn_id=turn_id, **f)
@@ -122,7 +132,7 @@ class Agent:
         final_text, abstained, invalid, steps, stop = None, False, 0, 0, False
         while steps < self.s.max_steps and not stop:
             steps += 1
-            out = await self.llm.complete([{"role": "system", "content": self._system(app_state)}, *self._window(session)], tools)
+            out = await self.llm.complete([{"role": "system", "content": self._system(app_state)}, *self._with_screen(self._window(session), app_state)], tools)
             if not out.tool_calls:
                 final_text = out.text or ""
                 session.messages.append({"role": "assistant", "content": final_text})

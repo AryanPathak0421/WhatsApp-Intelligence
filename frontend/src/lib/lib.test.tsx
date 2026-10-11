@@ -10,7 +10,7 @@ import { AuthProvider, can } from './auth';
 import { confidenceLevel, fmtDate, fmtDateTime, isOverdue, pct, titleCase } from './format';
 
 describe('format', () => {
-  it('renders WhatsApp wall-clock times without timezone shifts', () => {
+  it('renders message wall-clock times without timezone shifts', () => {
     expect(fmtDateTime('2026-10-01T10:00:00.000Z')).toBe('01 Oct 2026 10:00');
     expect(fmtDate('2026-12-31T23:30:00.000Z')).toBe('31 Dec 2026');
   });
@@ -63,8 +63,8 @@ describe('api client', () => {
   beforeEach(() => { sessionStorage.clear(); localStorage.clear(); });
 
   it('turns server errors into safe messages', () => {
-    expect(apiError({ response: { status: 409, data: { error: { code: 'DUPLICATE_UPLOAD', message: 'This chat appears to have already been imported.' } } } }).message)
-      .toBe('This chat appears to have already been imported.');
+    expect(apiError({ response: { status: 409, data: { error: { code: 'ANALYSIS_IN_PROGRESS', message: 'An analysis is already running for this project' } } } }).message)
+      .toBe('An analysis is already running for this project');
     expect(apiError({ code: 'ERR_NETWORK' }).code).toBe('NETWORK');
   });
 

@@ -1,15 +1,15 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { CheckCircle2, FileUp, Loader2, Search, XCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, MessagesSquare, RefreshCw, Search, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { Badge, Button, Card, CardHeader, EmptyState, ErrorState, Input, PageHeader, ProgressBar, Select, Skeleton, useToast } from '../components/ui';
 import { api, apiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { fmtDate, fmtDateTime, fmtTime } from '../lib/format';
-import { useInvalidateProject, useJob, useMessages, useTeam, useUploads } from '../lib/queries';
+import { useInvalidateProject, useJob, useMessages, useTeam } from '../lib/queries';
 
-const STEPS = ['Uploading', 'Parsing', 'Processing messages', 'Identifying team', 'Analyzing project', 'Indexing messages', 'Calculating progress', 'Generating report', 'Completed'];
+const STEPS = ['Queued', 'Starting', 'Identifying team', 'Analyzing project', 'Indexing messages', 'Calculating progress', 'Generating report', 'Completed'];
 
 function JobProgress({ jobId, onDone }: { jobId: string; onDone: () => void }) {
   const { data } = useJob(jobId);
@@ -30,44 +30,26 @@ function JobProgress({ jobId, onDone }: { jobId: string; onDone: () => void }) {
   );
 }
 
-function Uploader({ projectId }: { projectId: string }) {
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [over, setOver] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [dup, setDup] = useState('');
-  const input = useRef<HTMLInputElement>(null);
+/** The conversation comes from the project's groups in Team chat; analysis runs automatically after new messages. This card shows the last run and lets editors re-run it. */
+function Analyzer({ projectId }: { projectId: string }) {
+  const { can } = useAuth();
   const toast = useToast();
   const invalidate = useInvalidateProject();
-  const { data: uploads } = useUploads(projectId);
-  const hasData = !!uploads?.some((u) => u.status === 'COMPLETED');
-
-  const send = useCallback(async (file: File) => {
-    setDup(''); setBusy(true);
-    const fd = new FormData(); fd.append('file', file);
-    try { const r = await api.post(`/projects/${projectId}/chat/upload`, fd); setJobId(r.data.jobId); }
-    catch (e) {
-      const err = apiError(e);
-      if (err.code === 'DUPLICATE_UPLOAD') setDup(err.message); else toast.push('error', err.message);
-    } finally { setBusy(false); }
-  }, [projectId, toast]);
-
+  const [jobId, setJobId] = useState<string | null>(null);
+  const last = useQuery({ queryKey: ['last-analysis', projectId], queryFn: () => api.get(`/projects/${projectId}/chat/analysis`).then((r) => r.data as { id: string; status: string; finishedAt: string | null } | null) });
+  const onDone = useCallback(() => { invalidate(projectId); void last.refetch(); }, [invalidate, projectId, last]);
+  const run = async () => {
+    try { const r = await api.post(`/projects/${projectId}/chat/reanalyze`); setJobId(r.data.jobId); }
+    catch (e) { const err = apiError(e); if (err.code === 'ANALYSIS_IN_PROGRESS') setJobId((err.details as any)?.jobId ?? null); else toast.push('error', err.message); }
+  };
   return (
     <Card>
-      <CardHeader title={hasData ? 'Add a newer export' : 'Upload a WhatsApp chat'} sub={hasData ? 'Only new messages are added; tasks are never duplicated and your corrections are kept.' : 'Export the group chat from WhatsApp (without media) and drop the .txt file here.'} />
-      <div className="space-y-4 px-5 pb-5">
-        {!jobId ? (
-          <div role="button" tabIndex={0} aria-label="Upload chat file" onClick={() => input.current?.click()} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && input.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
-            onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files[0]; if (f) send(f); }}
-            className={clsx('flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors', over ? 'border-brand-500 bg-brand-500/5' : 'hover:bg-[var(--surface-2)]')}>
-            {busy ? <Loader2 className="size-6 animate-spin text-brand-500" /> : <FileUp className="size-6 text-brand-500" />}
-            <p className="text-sm font-medium">{busy ? 'Uploading…' : 'Drop your WhatsApp .txt export here, or click to browse'}</p>
-            <p className="muted text-xs">Max 200 MB · stored encrypted · processed on your own servers</p>
-            <input ref={input} type="file" accept=".txt,text/plain" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) send(f); e.target.value = ''; }} />
-          </div>
-        ) : <JobProgress jobId={jobId} onDone={() => { invalidate(projectId); toast.push('info', 'Analysis finished'); }} />}
-        {dup && <div role="alert" className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">{dup}</div>}
-        {jobId && <Button size="sm" onClick={() => { setJobId(null); }}>Upload another</Button>}
+      <CardHeader title="Analysis" sub="Messages from this project's groups in Team chat are analysed automatically shortly after the conversation goes quiet."
+        right={<div className="flex gap-2"><Link to="/chat"><Button size="sm"><MessagesSquare className="size-4" />Open Team chat</Button></Link>
+          {can('chat:upload') && <Button size="sm" variant="primary" onClick={() => void run()}><RefreshCw className="size-4" />Re-analyse now</Button>}</div>} />
+      <div className="px-5 pb-5">
+        {jobId ? <JobProgress jobId={jobId} onDone={onDone} />
+          : <p className="muted text-sm">{last.data ? `Last analysis: ${last.data.status.toLowerCase()}${last.data.finishedAt ? ` · ${fmtDateTime(last.data.finishedAt)}` : ''}` : 'Not analysed yet.'}</p>}
       </div>
     </Card>
   );
@@ -98,7 +80,7 @@ function Explorer({ projectId }: { projectId: string }) {
   };
   return (
     <Card>
-      <CardHeader title="Chat explorer" sub="Original messages, exactly as exported" />
+      <CardHeader title="Message explorer" sub="The original messages behind every insight, exactly as written" />
       <div className="flex flex-wrap items-end gap-2 px-5 pb-3">
         <div className="relative min-w-52 flex-1"><Search className="muted pointer-events-none absolute left-3 top-2.5 size-4" />
           <Input aria-label="Search messages" className="pl-9" placeholder={mode === 'semantic' ? 'Ask: what happened with payment integration?' : 'Search messages…'} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && run()} /></div>
@@ -112,7 +94,7 @@ function Explorer({ projectId }: { projectId: string }) {
           <ul className="divide-y">{hits.map((h) => <li key={h.message_id} className="px-5 py-3"><div className="mb-0.5 flex items-center gap-2 text-xs"><b>{h.sender}</b><span className="muted">{fmtDateTime(h.ts)}</span><Badge tone="blue">score {h.score}</Badge></div>
             <p className="text-sm">{h.text}</p>{h.context.length > 0 && <p className="muted mt-1 text-xs">{h.context.map((c: any) => `${c.sender}: ${c.text}`).join(' · ')}</p>}</li>)}</ul>
         )) : isLoading ? <div className="space-y-3 p-5">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-10" />)}</div>
-          : error ? <ErrorState error={error} onRetry={refetch} /> : !items.length ? <EmptyState title="No messages found" hint="Try different filters, or upload a chat first." /> : (
+          : error ? <ErrorState error={error} onRetry={refetch} /> : !items.length ? <EmptyState title="No messages found" hint="Try different filters, or start the conversation in Team chat." /> : (
             <ul>{items.map((m, i) => (
               <li key={m.id}>{(i === 0 || fmtDate(items[i - 1].timestamp) !== fmtDate(m.timestamp)) && <div className="sticky top-0 bg-[var(--surface-2)] px-5 py-1 text-[11px] font-medium muted">{fmtDate(m.timestamp)}</div>}
                 <div className="flex gap-3 px-5 py-2 hover:bg-[var(--surface-2)]/50"><span className="muted w-12 shrink-0 pt-0.5 text-xs tabular-nums">{fmtTime(m.timestamp)}</span>
@@ -126,17 +108,12 @@ function Explorer({ projectId }: { projectId: string }) {
 
 export default function ChatAnalysis() {
   const { projectId } = useOutletContext<{ projectId?: string }>();
-  const { can } = useAuth();
-  const { data: uploads } = useUploads(projectId);
   if (!projectId) return <EmptyState title="Select a project first" />;
   return (
     <>
-      <PageHeader title="Chat analysis" sub="Upload exports, then explore the original messages behind every insight." />
+      <PageHeader title="Chat analysis" sub="Explore the project's conversation and the messages behind every insight." />
       <div className="grid gap-5">
-        {can('chat:upload') && <Uploader projectId={projectId} />}
-        {!!uploads?.length && <Card><CardHeader title="Imports" /><ul className="divide-y">{uploads.map((u) => (
-          <li key={u.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5 text-sm"><span className="font-medium">{u.fileName}</span><Badge tone={u.status === 'COMPLETED' ? 'green' : u.status === 'FAILED' ? 'red' : 'blue'}>{u.status.toLowerCase()}</Badge>
-            <span className="muted text-xs">{u.messageCount} messages · {u.newMessageCount} new · {fmtDate(u.firstMessageAt)} – {fmtDate(u.lastMessageAt)}</span>{u.errorMessage && <span className="text-xs text-red-500">{u.errorMessage}</span>}</li>))}</ul></Card>}
+        <Analyzer projectId={projectId} />
         <Explorer projectId={projectId} />
       </div>
     </>

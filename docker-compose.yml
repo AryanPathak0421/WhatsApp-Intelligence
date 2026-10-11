@@ -17,9 +17,16 @@ x-app-env: &app-env
   AI_ENGINE_URL: http://ai-engine:8000
   AI_ENGINE_TOKEN: "${AI_ENGINE_TOKEN:?set AI_ENGINE_TOKEN}"
   UPLOAD_DIR: /data/uploads
-  UPLOAD_TTL_HOURS: "${UPLOAD_TTL_HOURS:-24}"
   CORS_ORIGIN: "${PUBLIC_URL:?set PUBLIC_URL, e.g. https://intel.example.com}"
   TRUST_PROXY: "1"
+  FRONTEND_URL: "${PUBLIC_URL}"
+  # chat invitation e-mails (optional; disabled when SMTP_HOST is empty). Needs outbound access to the SMTP server: see the `egress` network.
+  SMTP_HOST: "${SMTP_HOST:-}"
+  SMTP_PORT: "${SMTP_PORT:-465}"
+  SMTP_SECURE: "${SMTP_SECURE:-true}"
+  SMTP_USER: "${SMTP_USER:-}"
+  SMTP_PASS: "${SMTP_PASS:-}"
+  SMTP_FROM: "${SMTP_FROM:-}"
 
 services:
   postgres:
@@ -69,7 +76,7 @@ services:
       redis: { condition: service_healthy }
       ai-engine: { condition: service_healthy }
     volumes: [uploads:/data/uploads]
-    networks: [internal]
+    networks: [internal, egress]     # egress: only so invitation e-mails reach the SMTP server; the database and AI engine stay internal-only
     cap_drop: [ALL]
     mem_limit: "${BACKEND_MEM_LIMIT:-1g}"
     healthcheck: { test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"], interval: 15s, timeout: 5s, retries: 5, start_period: 30s }
@@ -125,3 +132,4 @@ volumes: { pgdata: {}, redisdata: {}, models: {}, uploads: {}, certbot-www: {} }
 networks:
   internal: { internal: true }    # no outbound internet
   edge: {}
+  egress: {}                      # outbound only (SMTP); attached to the backend alone

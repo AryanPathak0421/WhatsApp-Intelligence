@@ -1,12 +1,12 @@
 import clsx from 'clsx';
-import { Bell, BarChart3, Briefcase, Clock, FileText, Folder, LayoutDashboard, ListChecks, LogOut, Menu, MessageSquareText, Moon, Settings, ShieldAlert, Sparkles, Sun, Users, UserCheck, Wallet, X } from 'lucide-react';
+import { Bell, BarChart3, Briefcase, Clock, FileText, Folder, LayoutDashboard, ListChecks, LogOut, Menu, MessageCircle, MessageSquareText, Moon, Settings, ShieldAlert, Sparkles, Sun, Users, UserCheck, Wallet, X } from 'lucide-react';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Action, useAuth } from '../lib/auth';
 import Assistant from './Assistant';
 import { useLiveEvents } from '../lib/live';
 import { fmtDateTime } from '../lib/format';
-import { useNotifications, useProjects } from '../lib/queries';
+import { useNotifications, useProjects, useRooms } from '../lib/queries';
 import { api } from '../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { Badge, Select } from './ui';
@@ -15,6 +15,7 @@ export const LAST_PROJECT = 'wa.lastProject';
 const NAV: { to: string; label: string; icon: ReactNode; project?: boolean; need?: Action }[] = [
   { to: '/', label: 'Dashboard', icon: <LayoutDashboard className="size-4" />, need: 'analytics:view' },
   { to: '/projects', label: 'Projects', icon: <Folder className="size-4" /> },
+  { to: '/chat', label: 'Team chat', icon: <MessageCircle className="size-4" /> },
   { to: 'overview', label: 'Project overview', icon: <Briefcase className="size-4" />, project: true },
   { to: 'chat', label: 'Chat Analysis', icon: <MessageSquareText className="size-4" />, project: true, need: 'chat:view_raw' },
   { to: 'tasks', label: 'Tasks', icon: <ListChecks className="size-4" />, project: true },
@@ -72,6 +73,7 @@ export default function Layout() {
   const [dark, setDark] = useDark();
   const [mobile, setMobile] = useState(false);
   const live = useLiveEvents(!!user);
+  const unreadChats = useRooms().data?.totalUnread ?? 0;
   const last = localStorage.getItem(LAST_PROJECT) ?? undefined;
   const projectId = routeId ?? (projects?.some((p) => p.id === last) ? last : projects?.[0]?.id);
   useEffect(() => { if (routeId) localStorage.setItem(LAST_PROJECT, routeId); }, [routeId]);
@@ -85,7 +87,7 @@ export default function Layout() {
     <nav className="flex h-full flex-col" aria-label="Main">
       <div className="flex items-center gap-2 px-5 py-4">
         <div className="grid size-8 place-items-center rounded-lg bg-brand-600 text-sm font-bold text-white">PI</div>
-        <div><p className="text-sm font-semibold leading-tight">Project Intelligence</p><p className="muted text-[11px]">WhatsApp → structured insight</p></div>
+        <div><p className="text-sm font-semibold leading-tight">Project Intelligence</p><p className="muted text-[11px]">Chat → structured insight</p></div>
       </div>
       <ul className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3">
         {items.map((n) => {
@@ -95,6 +97,7 @@ export default function Layout() {
               <NavLink to={to} end={n.to === '/'} className={({ isActive }) => clsx('flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
                 isActive ? 'bg-brand-500/10 font-medium text-brand-700 dark:text-brand-100' : 'muted hover:bg-[var(--surface-2)] hover:text-[var(--text)]')}>
                 {n.icon}{n.label}
+                {n.to === '/chat' && unreadChats > 0 && <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-brand-600 px-1.5 text-[10px] font-semibold text-white">{unreadChats}</span>}
               </NavLink>
             </li>
           );
@@ -133,7 +136,7 @@ export default function Layout() {
         </header>
         <main className="flex-1 overflow-y-auto"><div className="mx-auto w-full max-w-[1400px] p-4 lg:p-6"><Outlet context={{ projectId }} /></div></main>
       </div>
-      <Assistant projectId={projectId} />
+      {!loc.pathname.startsWith('/chat') && <Assistant projectId={projectId} />}{/* its floating button would cover the chat's send button */}
     </div>
   );
 }

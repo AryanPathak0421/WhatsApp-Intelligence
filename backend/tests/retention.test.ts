@@ -2,7 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db';
 import { runRetentionSweep } from '../src/services/retention';
-import { bootstrapAdmin, createUser, makeCtx, resetDb, Session, uploadChat, waitJob } from './helpers';
+import { bootstrapAdmin, createUser, makeCtx, resetDb, seedChat, Session, waitJob } from './helpers';
 
 const DAY = 86_400_000;
 const ddmmyyyy = (daysAgo: number) => { const d = new Date(Date.now() - daysAgo * DAY); return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`; };
@@ -20,7 +20,7 @@ const get = (u: Session, url: string) => request(ctx.app).get(url).set(u.auth);
 
 async function freshProject(name: string) {
   const id = (await request(ctx.app).post('/api/projects').set(pm.auth).send({ name })).body.id;
-  const up = await uploadChat(ctx, pm.auth, id, chat());
+  const up = await seedChat(ctx, pm.auth, id, chat());
   expect(up.status).toBe(202);
   expect((await waitJob(ctx, pm.auth, up.body.jobId)).status).toBe('COMPLETED');
   return id as string;
@@ -92,13 +92,13 @@ describe('erasure', () => {
     expect(await prisma.chatMessage.count({ where: { projectId: p4 } })).toBe(4);
   });
 
-  it('removes messages, derived data, snapshots, participants and uploads but keeps the project shell and the audit trail', async () => {
+  it('removes messages, derived data, snapshots and participants but keeps the project shell and the audit trail', async () => {
     const p5 = await freshProject('Erase fully');
     expect(await prisma.task.count({ where: { projectId: p5 } })).toBeGreaterThan(0);
     const r = await request(ctx.app).post(`/api/projects/${p5}/erase-data`).set(admin.auth).send({ confirmProjectName: 'Erase fully' });
     expect(r.status).toBe(200);
-    expect(r.body).toMatchObject({ messagesDeleted: 4, derivedWiped: true, uploadFilesDeleted: 1 });
-    for (const model of ['chatMessage', 'task', 'chatParticipant', 'aIAnalysis', 'insight', 'projectProgress', 'projectHealth', 'chatUpload', 'analysisJob'] as const) {
+    expect(r.body).toMatchObject({ messagesDeleted: 4, derivedWiped: true, uploadFilesDeleted: 0 });   // in-app messages have no files
+    for (const model of ['chatMessage', 'task', 'chatParticipant', 'aIAnalysis', 'insight', 'projectProgress', 'projectHealth', 'analysisJob'] as const) {
       expect(await (prisma as any)[model].count({ where: { projectId: p5 } }), model).toBe(0);
     }
     expect(await prisma.project.count({ where: { id: p5 } })).toBe(1);

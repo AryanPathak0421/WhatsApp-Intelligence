@@ -75,7 +75,7 @@ projectsRouter.delete('/:id/members/:userId', requirePermission('member:manage')
   res.status(204).end();
 }));
 
-// ---- chat participants ("team" detected from WhatsApp) ---------------------------
+// ---- chat participants ("team" detected from the conversation) ------------------
 projectsRouter.get('/:id/team', projectAccess('view'), requirePermission('team:view'), asyncHandler(async (req, res) => {
   const reveal = can(req.user!.role, 'chat:view_raw') && ['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER'].includes(req.user!.role);
   const rows = await prisma.chatParticipant.findMany({ where: { projectId: req.params.id }, orderBy: { displayName: 'asc' },

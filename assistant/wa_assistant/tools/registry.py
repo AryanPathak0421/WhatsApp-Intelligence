@@ -146,11 +146,22 @@ class Tool:
     refusal: str = ""                                       # T3 message
 
     def llm_schema(self) -> dict:
+        """Compact schema for the model: every prompt token costs ~50 ms on CPU. Validation stays in the pydantic model (limits, extra=forbid)."""
         sch = self.args.model_json_schema()
-        sch.pop("title", None)
-        for p in sch.get("properties", {}).values():
-            p.pop("title", None)
-        return {"type": "function", "function": {"name": self.name, "description": self.description, "parameters": sch}}
+        props = {}
+        for k, p in sch.get("properties", {}).items():
+            p = {a: b for a, b in p.items() if a in ("type", "enum", "description", "items", "anyOf", "format")}
+            if "anyOf" in p:                                                   # Optional[X] -> X
+                real = [x for x in p.pop("anyOf") if x.get("type") != "null"]
+                if len(real) == 1:
+                    p.update({a: b for a, b in real[0].items() if a in ("type", "enum", "items", "format")})
+            if p.get("description", "").startswith("Project id returned by"):
+                p["description"] = "from list_projects"
+            props[k] = p
+        out = {"type": "object", "properties": props}
+        if sch.get("required"):
+            out["required"] = sch["required"]
+        return {"type": "function", "function": {"name": self.name, "description": self.description, "parameters": out}}
 
 
 # ---- verification (independent read-back wherever the backend offers one) ----

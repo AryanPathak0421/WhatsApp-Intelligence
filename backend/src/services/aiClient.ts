@@ -32,13 +32,6 @@ export interface AiMessage {
 export interface ParseResult { fingerprint: string; messages: AiMessage[]; report: Record<string, unknown> }
 
 export const ai = {
-  async parse(buf: Buffer, filename = 'chat.txt'): Promise<ParseResult> {
-    try {
-      const fd = new FormData();
-      fd.append('file', new Blob([new Uint8Array(buf)]), filename);
-      return (await client().post('/ai/parse', fd)).data;
-    } catch (e) { return wrap(e); }
-  },
   async analyze(body: unknown): Promise<any> {
     try { return (await client().post('/ai/analyze-messages', body)).data; } catch (e) { return wrap(e); }
   },

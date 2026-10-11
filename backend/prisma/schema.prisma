@@ -1,4 +1,4 @@
-// WhatsApp Project Intelligence - PostgreSQL schema
+// Project Intelligence - PostgreSQL schema (conversations come from the in-app chat)
 //
 // Principles
 //  1. ChatMessage is IMMUTABLE original data. No AI/human edit ever touches it.
@@ -200,6 +200,70 @@ model User {
   changeLogs   ChangeLog[]
   notifications Notification[]
   refreshTokens RefreshToken[]
+  roomMemberships RoomMember[]
+  roomMessages    RoomMessage[]
+}
+
+// ───────────── In-app chat (native groups and direct messages; no WhatsApp or external API involved) ─────────────
+// A GROUP room belongs to a project: its messages are mirrored into ChatMessage so the normal analysis (tasks, progress, health) covers them.
+// A DIRECT room is private between two users, belongs to no project and is never analysed.
+model ChatRoom {
+  id          String    @id @default(uuid())
+  kind        String    @default("GROUP")   // GROUP | DIRECT
+  name        String
+  projectId   String?
+  directKey   String?   @unique             // "userA:userB" (sorted) so a pair has exactly one DM room
+  createdById String
+  createdAt   DateTime  @default(now())
+  archivedAt  DateTime?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  members     RoomMember[]
+  messages    RoomMessage[]
+  invites     ChatInvite[]
+  @@index([projectId])
+}
+
+// E-mail invitation of a person WITHOUT an account into a project group. Accepting creates a CLIENT_VIEWER account with view access to the project
+// and membership of the group. Only the SHA-256 of the token is stored; the token itself exists only in the e-mail link.
+model ChatInvite {
+  id          String    @id @default(uuid())
+  tokenHash   String    @unique
+  email       String
+  name        String?
+  roomId      String
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  room        ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  @@index([roomId])
+  @@index([email])
+}
+
+model RoomMember {
+  id         String   @id @default(uuid())
+  roomId     String
+  userId     String
+  joinedAt   DateTime @default(now())
+  lastReadAt DateTime @default(now())
+  room       ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+model RoomMessage {
+  id            String   @id @default(uuid())
+  roomId        String
+  senderId      String
+  text          String
+  replyToId     String?
+  chatMessageId String?  // the mirrored ChatMessage of a project room (null for DMs)
+  createdAt     DateTime @default(now())
+  room          ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender        User     @relation(fields: [senderId], references: [id])
+  @@index([roomId, createdAt])
 }
 
 model RefreshToken {
@@ -241,8 +305,8 @@ model Project {
   participants     ChatParticipant[]
   uploads          ChatUpload[]
   messages         ChatMessage[]
-  whatsappSources  WhatsappSource[]
-  modules          ProjectModule[]
+  rooms            ChatRoom[]
+  modules         ProjectModule[]
   tasks            Task[]
   clientPending    ClientPendingItem[]
   salesActivities  SalesActivity[]
@@ -850,49 +914,3 @@ model TrainingExample {
   @@index([source])
 }
 
-// ───────────── Authorized WhatsApp ingestion (Cloud API webhook) ─────────────
-// Maps one WhatsApp conversation (a business-created group id, or a customer's wa_id for 1:1 chats) on one business phone number to a project.
-// Messages from conversations that are NOT mapped here are never stored.
-model WhatsappSource {
-  id              String    @id @default(uuid())
-  projectId       String
-  phoneNumberId   String    // Meta business phone_number_id
-  conversationKey String    // group_id, or the customer's wa_id
-  label           String
-  uploadId        String    // synthetic ChatUpload that owns the messages arriving from this source
-  active          Boolean   @default(true)
-  createdById     String
-  createdAt       DateTime  @default(now())
-  lastEventAt     DateTime?
-  messageCount    Int       @default(0)
-  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  @@unique([phoneNumberId, conversationKey])
-  @@index([projectId])
-}
-
-// ───────────── Google Drive import (OAuth, read-only) ─────────────
-// One company = one connection. The refresh token is stored AES-256-GCM encrypted (same field encryption as phone numbers).
-model GoogleConnection {
-  id              String    @id @default("singleton")
-  connectedById   String
-  accountEmail    String?
-  refreshTokenEnc String
-  scope           String
-  status          String    @default("CONNECTED")   // CONNECTED | NEEDS_REAUTH
-  lastSyncAt      DateTime?
-  lastError       String?
-  connectedAt     DateTime  @default(now())
-}
-
-// One row per Drive file already handled (key = Drive file id). A changed md5 means the file was replaced and is imported again (incrementally).
-model DriveImport {
-  fileId       String   @id
-  projectId    String
-  fileName     String
-  md5          String?
-  modifiedTime String?
-  outcome      String   // imported | duplicate | rejected
-  detail       String?
-  importedAt   DateTime @default(now())
-  @@index([projectId, importedAt])
-}

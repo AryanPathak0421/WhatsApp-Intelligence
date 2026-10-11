@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { tokens } from './api';
 
 export type LiveState = 'connecting' | 'live' | 'polling';
-export interface LiveEvent { type: string; projectId: string; jobId?: string; progress?: number; stage?: string; at: string }
+export interface LiveEvent { type: string; projectId: string; roomId?: string; actorId?: string; jobId?: string; progress?: number; stage?: string; at: string }
 
 /** Parses SSE text blocks ("event:", "data:") from a growing buffer; returns the events and the unconsumed rest. */
 export function parseSse(buf: string): { events: { event: string; data: LiveEvent }[]; rest: string } {
@@ -39,6 +39,10 @@ export function useLiveEvents(enabled: boolean): LiveState {
       window.dispatchEvent(new CustomEvent('live:event', { detail: e.data }));
       if (e.event === 'analysis.completed' || e.event === 'analysis.failed') void qc.invalidateQueries();
       else if (e.event === 'notification.created') void qc.invalidateQueries({ queryKey: ['notifications'] });
+      else if (e.event === 'chat.message' || e.event === 'chat.room') {                       // ids only: refetch what is on screen
+        void qc.invalidateQueries({ queryKey: ['rooms'] });
+        if (e.data.roomId) { void qc.invalidateQueries({ queryKey: ['room-messages', e.data.roomId] }); void qc.invalidateQueries({ queryKey: ['room', e.data.roomId] }); }
+      }
     };
 
     const run = async () => {

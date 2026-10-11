@@ -1,5 +1,7 @@
 # Phase 1: existing-system analysis, WhatsApp feasibility, and gap analysis against the "Ultimate Master Prompt"
 
+> **Historical document.** WhatsApp ingestion (export import, watched folder, Google Drive import, Cloud API webhook) was later **removed** (2026-10-11, ADR-007 in [DECISIONS](DECISIONS.md)); the product now uses its own in-app chat ([IN_APP_CHAT](../03-ingestion/IN_APP_CHAT.md)). The analysis below is kept unchanged as the record of what was found and decided at the time.
+
 Scope: analysis and design only. **No application code was changed for this document.** Every statement about the repository comes from reading it; statements
 about WhatsApp come from Meta's current developer documentation (links in section 3). Items I could not verify are marked **unverified**.
 

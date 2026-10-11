@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { prisma } from '../db';
 import { authenticate, requirePermission } from '../middlewares/auth';
 import { ai } from '../services/aiClient';
-import { autoImportStatus, pendingByFolder, scaffoldFolders } from '../services/autoimport';
 import { JobQueue } from '../queues';
 import { asyncHandler } from '../utils/errors';
 
@@ -39,16 +38,6 @@ export function statusRouter(queue: JobQueue) {
   r.get('/ai/status', authenticate, requirePermission('user:manage'), asyncHandler(async (_req, res) => {
     const s = await ai.status();
     res.status(s.reachable ? 200 : 503).json(s);
-  }));
-  /** Watched-folder import (exports synced from the phone). Admin only; shows the folder, each project folder's state, and recent outcomes. */
-  r.get('/auto-import/status', authenticate, requirePermission('user:manage'), asyncHandler(async (_req, res) => {
-    const s = autoImportStatus();
-    res.json({ ...s, folders: s.enabled ? await pendingByFolder() : [] });
-  }));
-
-  r.post('/auto-import/folders', authenticate, requirePermission('user:manage'), asyncHandler(async (_req, res) => {
-    if (!autoImportStatus().enabled) return void res.status(409).json({ error: { code: 'AUTO_IMPORT_DISABLED', message: 'Set AUTO_IMPORT_DIR to enable the watched folder' } });
-    res.json(await scaffoldFolders());
   }));
   return r;
 }

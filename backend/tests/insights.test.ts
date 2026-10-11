@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db';
-import { bootstrapAdmin, createUser, makeCtx, resetDb, Session, uploadChat, waitJob } from './helpers';
+import { bootstrapAdmin, createUser, makeCtx, resetDb, seedChat, Session, waitJob } from './helpers';
 
 const CHAT = `[01/10/2026, 10:00 AM] Priya: Rahul, when will the invoice export be ready?
 [01/10/2026, 10:05 AM] Rahul: The invoice export will be ready by Friday
@@ -24,7 +24,7 @@ beforeAll(async () => {
   outsider = await createUser(ctx, admin, 'PROJECT_MANAGER', 'other@example.com');
   pid = (await request(ctx.app).post('/api/projects').set(pm.auth).send({ name: 'Insights' })).body.id;
   for (const u of [member, client]) await request(ctx.app).post(`/api/projects/${pid}/members`).set(pm.auth).send({ userId: u.user.id });
-  const up = await uploadChat(ctx, pm.auth, pid, CHAT);
+  const up = await seedChat(ctx, pm.auth, pid, CHAT);
   expect(up.status).toBe(202);
   const job = await waitJob(ctx, pm.auth, up.body.jobId);
   expect(job.status).toBe('COMPLETED');

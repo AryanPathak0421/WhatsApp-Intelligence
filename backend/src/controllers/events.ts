@@ -33,7 +33,8 @@ eventsRouter.get('/events', (req, res) => {
   let seq = 0;
   const off = events.subscribe(async (e: LiveEvent) => {
     try {
-      if (!(await canSee(e.projectId))) return;
+      if (e.userIds) { if (!e.userIds.includes(user.id)) return; }          // chat: room members only
+      else if (!(await canSee(e.projectId))) return;
       res.write(`id: ${++seq}\nevent: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`);
     } catch { /* connection closing */ }
   });

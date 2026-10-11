@@ -1,4 +1,4 @@
-/** WhatsApp times are wall-clock values stored as UTC: always render them in UTC so nothing shifts. */
+/** Message times are wall-clock values (project timezone) stored as UTC: always render them in UTC so nothing shifts. */
 const opt = (o: Intl.DateTimeFormatOptions): Intl.DateTimeFormatOptions => ({ ...o, timeZone: 'UTC' });
 export const fmtDate = (s?: string | null) => (s ? new Date(s).toLocaleDateString('en-GB', opt({ day: '2-digit', month: 'short', year: 'numeric' })) : '—');
 export const fmtShort = (s?: string | null) => (s ? new Date(s).toLocaleDateString('en-GB', opt({ day: '2-digit', month: 'short' })) : '—');

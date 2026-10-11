@@ -1,7 +1,7 @@
 # Reliability of the headline numbers, and task-title quality
 
 ## Why this exists
-Progress % and the health score are arithmetic over the **tasks** the analysis extracted. On a real chat ("Get Right Home", 434 messages, Aug to Oct 2026) the engine found only **9 tasks**, all
+Progress % and the health score are arithmetic over the **tasks** the analysis extracted. On a real chat ("Get Right Home", 434 messages, Aug to Oct 2026; a WhatsApp export imported before WhatsApp ingestion was removed, ADR-007, and kept as stored data) the engine found only **9 tasks**, all
 low-confidence and all waiting for review, and several were chat fragments ("I URL", "I sub URL for", "Join sir"). The dashboard still showed a bold **78% / Critical**. The arithmetic was exact; its
 input was not. Two changes address that.
 
@@ -25,7 +25,7 @@ Code: `backend/src/services/reliability.ts`. It never changes a number; it state
 
 ## 2. Task-title quality gate (AI engine)
 Code: `ai-engine/app/intelligence/title_quality.py`, applied at all three task-creation points in `tasks.py` (volunteered, self-announced, assigned).
-A title is accepted only if, after removing placeholders (`<url>`, `<Media omitted>`), links, WhatsApp mentions (`@` + U+2068..U+2069), invisible direction marks, greetings/vocatives ("sir", "madam"),
+A title is accepted only if, after removing placeholders (`<url>`, `<Media omitted>`), links, WhatsApp-style mentions (`@` + U+2068..U+2069, still present in previously imported messages and the evaluation datasets), invisible direction marks, greetings/vocatives ("sir", "madam"),
 people's names and English/Hinglish function words, **at least two content words remain**, it is not a short "I ..." / "we ..." remark (<= 4 words), and it does not end on a dangling connector
 ("for", "and", ...). Two-letter all-caps acronyms (UI, DB, QA) count as content. Rejected messages simply do not become tasks (they can still act as evidence for existing ones).
 Tests: `ai-engine/tests/test_title_quality.py` (28).

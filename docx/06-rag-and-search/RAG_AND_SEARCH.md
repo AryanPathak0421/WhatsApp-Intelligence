@@ -3,10 +3,11 @@
 Two separate retrieval systems share the same ideas (hybrid lexical + dense, evidence ids, no fabricated references).
 
 ## 1. Project message search (`ai-engine/app/search/semantic.py`)
+Indexes a project's stored messages: in-app project-group messages (mirrored into `ChatMessage`) and messages kept from the former WhatsApp import. Direct messages and groups without a project are never indexed.
 Per-project index (one index = one project, hard isolation): BM25 over stemmed tokens (with domain alias expansion, e.g. "payment" also matches razorpay/gateway) + dense vectors
 (multilingual-e5 or the dependency-free hashing embedder) + filters (sender, date range); modes `hybrid | semantic | lexical`; fusion by reciprocal rank. Endpoints `POST /ai/index`,
 `POST /ai/search`, `DELETE /ai/index/{project}` (retention). The index lives in the engine's memory and is rebuilt by analysis; erasing/purging a project drops it.
-Evaluation and the benchmark on synthetic and unseen chats: `docs/PHASE7_SEARCH_GRAPH.md`.
+Evaluation and the benchmark on synthetic and unseen chats (WhatsApp-format text files used as an evaluation dataset): `docs/PHASE7_SEARCH_GRAPH.md`.
 
 ## 2. Document / research-paper RAG (`assistant/wa_assistant/rag/`)
 

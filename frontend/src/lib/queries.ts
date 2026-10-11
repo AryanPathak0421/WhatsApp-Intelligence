@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
-import type { ClientPending, Evidence, Job, Msg, Overview, ProjectRow, Task } from './types';
+import type { ClientPending, Evidence, Job, Msg, Overview, ProjectRow, RoomDetail, RoomMsg, RoomRow, RoomUser, Task } from './types';
 
 const get = <T,>(url: string, params?: object) => api.get<T>(url, { params }).then((r) => r.data);
 
@@ -24,7 +24,6 @@ export const useTimeline = (id?: string) => useQuery({ queryKey: ['timeline', id
 export const useVelocity = (id?: string, enabled = true) => useQuery({ queryKey: ['velocity', id], enabled: !!id && enabled, queryFn: () => get<any>(`/projects/${id}/velocity`) });
 export const useResponseTime = (id?: string, enabled = true) => useQuery({ queryKey: ['rt', id], enabled: !!id && enabled, queryFn: () => get<any>(`/projects/${id}/client-response-time`) });
 export const useReports = (id?: string, enabled = true) => useQuery({ queryKey: ['reports', id], enabled: !!id && enabled, queryFn: () => get<{ items: any[] }>(`/projects/${id}/reports`).then((r) => r.items) });
-export const useUploads = (id?: string, enabled = true) => useQuery({ queryKey: ['uploads', id], enabled: !!id && enabled, queryFn: () => get<{ items: any[] }>(`/projects/${id}/chat/uploads`).then((r) => r.items) });
 export const useEvidence = (taskId?: string) => useQuery({ queryKey: ['evidence', taskId], enabled: !!taskId, queryFn: () => get<Evidence>(`/tasks/${taskId}/evidence`) });
 export const useNotifications = () => useQuery({ queryKey: ['notifications'], refetchInterval: 60_000, queryFn: () => get<{ items: any[]; unread: number }>('/notifications') });
 export const useMembers = (id?: string, enabled = true) => useQuery({ queryKey: ['members', id], enabled: !!id && enabled, queryFn: () => get<{ items: any[] }>(`/projects/${id}/members`).then((r) => r.items) });
@@ -40,7 +39,7 @@ export const useJob = (jobId?: string | null) => useQuery({ queryKey: ['job', jo
 export function useInvalidateProject() {
   const qc = useQueryClient();
   return (projectId?: string) => {
-    for (const k of ['overview', 'progress', 'health', 'summary', 'insights', 'tasks', 'cp', 'team-perf', 'team', 'sales', 'risks', 'conflicts', 'timeline', 'velocity', 'rt', 'uploads', 'messages', 'executive', 'projects', 'notifications'])
+    for (const k of ['overview', 'progress', 'health', 'summary', 'insights', 'tasks', 'cp', 'team-perf', 'team', 'sales', 'risks', 'conflicts', 'timeline', 'velocity', 'rt', 'messages', 'executive', 'projects', 'notifications'])
       qc.invalidateQueries({ queryKey: [k] });
     void projectId;
   };
@@ -54,15 +53,11 @@ export const useSentiment = (id?: string, enabled = true) => useQuery({ queryKey
 export const useSummaries = (id?: string, kind: 'daily' | 'weekly' | 'monthly' = 'weekly', enabled = true) =>
   useQuery({ queryKey: ['summaries', id, kind], enabled: !!id && enabled, queryFn: () => get<any>(`/projects/${id}/summaries`, { kind }) });
 
-export const useAutoImport = (enabled = true) => useQuery({ queryKey: ['auto-import'], enabled, refetchInterval: 15_000, queryFn: () => get<{
-  enabled: boolean; root: string | null; lastScanAt: string | null; scans: number; intervalMs: number;
-  folders: { folder: string; project: string | null; status: 'ok' | 'unknown' | 'ambiguous'; waitingFiles: number }[];
-  recent: { at: string; folder: string; file?: string; outcome: string; detail?: string }[] }>('/auto-import/status') });
 
-export interface GoogleStatus {
-  configured: boolean; connected: boolean; needsReauth: boolean; account: string | null; rootFolder: string; pollMs: number; connectedAt: string | null;
-  lastSyncAt: string | null; lastError: string | null;
-  recentImports: { fileName: string; outcome: string; detail?: string | null; importedAt: string }[];
-  recent: { at: string; folder?: string; file?: string; outcome: string; detail?: string }[];
-}
-export const useGoogleStatus = (enabled = true) => useQuery({ queryKey: ['google'], enabled, refetchInterval: 20_000, queryFn: () => get<GoogleStatus>('/google/status') });
+// ---- in-app chat (live events invalidate these keys; the interval is only a fallback when the stream is down) ----
+export const useRooms = () => useQuery({ queryKey: ['rooms'], refetchInterval: 60_000, queryFn: () => get<{ items: RoomRow[]; totalUnread: number }>('/rooms') });
+export const useRoom = (id?: string) => useQuery({ queryKey: ['room', id], enabled: !!id, retry: false, queryFn: () => get<RoomDetail>(`/rooms/${id}`) });
+export const useRoomMessages = (id?: string) => useQuery({ queryKey: ['room-messages', id], enabled: !!id, retry: false, refetchInterval: 60_000,
+  queryFn: () => get<{ items: RoomMsg[]; hasMore: boolean }>(`/rooms/${id}/messages`, { limit: 100 }) });
+export const useRoomUsers = (enabled: boolean, projectId?: string) => useQuery({ queryKey: ['room-users', projectId ?? null], enabled,
+  queryFn: () => get<{ items: RoomUser[] }>('/room-users', projectId ? { projectId } : undefined).then((r) => r.items) });

@@ -3,7 +3,7 @@ import { fmtDateTime } from '../lib/format';
 import { useEvidence } from '../lib/queries';
 import { Badge, ConfidenceBadge, Drawer, ErrorState, Skeleton, StatusBadge } from './ui';
 
-/** Auditability: every AI result opens the exact WhatsApp messages (with surrounding context) it came from. */
+/** Auditability: every AI result opens the exact chat messages (with surrounding context) it came from. */
 export function EvidenceDrawer({ taskId, onClose }: { taskId: string | null; onClose: () => void }) {
   const { data, isLoading, error, refetch } = useEvidence(taskId ?? undefined);
   return (

@@ -20,13 +20,13 @@ const registerBody = z.object({
   role: z.enum(['SUPER_ADMIN', 'ADMIN', 'PROJECT_MANAGER', 'TEAM_MEMBER', 'SALES', 'CLIENT_VIEWER']).optional(),
 });
 
-async function issueTokens(user: { id: string; role: any }, req: any) {
+export async function issueTokens(user: { id: string; role: any }, req: any) {
   const refresh = randomToken();
   await prisma.refreshToken.create({ data: { userId: user.id, tokenHash: sha256(refresh),
     expiresAt: new Date(Date.now() + config().JWT_REFRESH_TTL_DAYS * 86_400_000) } });
   return { accessToken: signAccess(user), refreshToken: refresh, tokenType: 'Bearer' };
 }
-const publicUser = (u: { id: string; email: string; name: string; role: string }) => ({ id: u.id, email: u.email, name: u.name, role: u.role });
+export const publicUser = (u: { id: string; email: string; name: string; role: string }) => ({ id: u.id, email: u.email, name: u.name, role: u.role });
 
 authRouter.post('/login', validateBody(credentials), asyncHandler(async (req, res) => {
   if (!loginLimit.check(req)) throw new AppError(429, 'TOO_MANY_ATTEMPTS', 'Too many failed attempts. Try again later.');

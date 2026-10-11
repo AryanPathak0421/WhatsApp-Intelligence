@@ -2,7 +2,19 @@
 
 Authentication: `Authorization: Bearer <access token>` unless marked **public**. Errors: `{"error":{"code","message","details?"}}`. Validation errors are **422**, unknown or
 inaccessible projects **404**, missing permission **403**, no/expired token **401**. Roles: SUPER_ADMIN, ADMIN, PROJECT_MANAGER, TEAM_MEMBER, SALES, CLIENT_VIEWER.
-Older endpoints (auth, projects, chat upload, tasks, analytics, reports, overview) are described in `docs/PHASE9_BACKEND.md`; this file lists what was added or changed.
+Older endpoints (auth, projects, tasks, analytics, reports, overview) are described in `docs/PHASE9_BACKEND.md`; this file lists what was added or changed.
+That document also describes the chat-export upload, which **no longer exists** (removed 2026-10-11 with all WhatsApp ingestion, ADR-007).
+
+## Chat analysis (project access required)
+
+| Method and path | Access | Behaviour |
+|---|---|---|
+| `GET /projects/:id/chat/analysis` | project view | latest analysis job and its state |
+| `POST /projects/:id/chat/reanalyze` | `chat:upload` + project edit | "Re-analyse now" on the Chat analysis page; 202 `{jobId}`; 400 if the project has no messages; 409 if an analysis is already running |
+| `GET /analysis/:jobId` | project view | one analysis job |
+| `GET /projects/:id/messages`, `GET /projects/:id/search` | project view + `chat:view_raw` | message explorer and search over stored messages |
+
+Messages reach a project only through its in-app project group (below); analysis then runs automatically after `ANALYSIS_DEBOUNCE_MS`.
 
 ## Insights (permission `analytics:view`; project access required)
 
@@ -27,22 +39,27 @@ Older endpoints (auth, projects, chat upload, tasks, analytics, reports, overvie
 
 ## Live events
 
-`GET /events` (authenticated, `text/event-stream`). Events: `analysis.progress`, `analysis.completed`, `analysis.failed`, `notification.created`; data = `{type, projectId, jobId?, progress?, stage?, at}`.
-Delivered only for projects the user can see (admins: all); max 5 simultaneous streams per user (429). No message text is ever sent.
+`GET /events` (authenticated, `text/event-stream`). Analysis events: `analysis.progress`, `analysis.completed`, `analysis.failed`, `notification.created`; data = `{type, projectId, jobId?, progress?, stage?, at}`,
+delivered only for projects the user can see (admins: all). Chat events: `chat.message`, `chat.room`, `chat.typing`; data = `{type, projectId, roomId, actorId?, at}`, delivered only to the room members listed in
+the event's `userIds`. Max 5 simultaneous streams per user (429). No message text is ever sent.
 
-## WhatsApp Cloud API webhook
+## In-app chat (signed-in; a room that is not yours answers 404)
+
+Details, permissions and privacy rules: `03-ingestion/IN_APP_CHAT.md`.
 
 | Method and path | Access | Behaviour |
 |---|---|---|
-| `GET /webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=&hub.challenge=` | **public** | echoes the challenge if the token matches `WHATSAPP_VERIFY_TOKEN`, else 403; 503 if not configured |
-| `POST /webhooks/whatsapp` | **public**, HMAC-signed | requires `X-Hub-Signature-256: sha256=<hmac of the raw body with WHATSAPP_APP_SECRET>` else 401; returns `{received, stored, duplicates, unmapped, ignored}` with 200 |
-| `GET /projects/:id/whatsapp-sources` | `chat:upload` | connected conversations and counters |
-| `POST /projects/:id/whatsapp-sources` | `chat:upload` + project edit | body `{phoneNumberId (digits), conversationKey (group_id or wa_id), label}`; 409 if already connected (does not say where) |
-| `DELETE /projects/:id/whatsapp-sources/:sid` | `chat:upload` + project edit | stops ingestion (204); stored messages stay |
-
-## Watched-folder import (admin, `user:manage`)
-
-`GET /auto-import/status` (folder state and recent outcomes) and `POST /auto-import/folders` (create one folder per project). See `03-ingestion/WATCHED_FOLDER_IMPORT.md`.
+| `GET /rooms`, `POST /rooms`, `POST /rooms/direct` | signed-in; create needs `member:manage` (+ project edit for a project group) | my rooms with last message and unread count; create a group; one direct room per pair (201 new, 200 existing) |
+| `GET /rooms/:id`, `PATCH /rooms/:id` | room member; rename: creator/admin | details with members; rename |
+| `GET /rooms/:id/messages?before&limit`, `POST /rooms/:id/messages` | room member | oldest-first page with `hasMore`; send `{text<=4000, replyToId?}`, 60 per minute per user; project-group messages are mirrored into `ChatMessage` and analysed |
+| `POST /rooms/:id/typing` | room member | ephemeral typing indicator (never stored): a `chat.typing` event to the **other** members only, at most one broadcast per user and room every 2 s; 204 |
+| `POST /rooms/:id/read` | room member | marks read (drives unread counts) |
+| `POST /rooms/:id/members`, `DELETE /rooms/:id/members/:uid` | creator/admin adds or removes; anyone can leave | membership; a project group needs project access |
+| `GET /room-users?projectId=` | signed-in | who the caller may add / message (empty for client accounts) |
+| `POST /rooms/:id/invite` | group creator/admin with project edit; 30 per hour | `{email, name?}`: an existing account is added at once (200, notice e-mail); otherwise a single-use invitation link is e-mailed (201, `emailSent`) |
+| `GET /rooms/:id/invites`, `DELETE /rooms/:id/invites/:iid` | group creator/admin | pending invitations; revoke one (204) |
+| `GET /invites/:token` | **public** | inviter, group, project, expiry, `accountExists`; 404 invalid or revoked, 410 already used or expired |
+| `POST /invites/:token/accept` | **public**, rate-limited | `{name, password (>=10)}`: creates a `CLIENT_VIEWER` account with view access to the project and group membership, returns tokens (201); 409 if an account with that e-mail exists |
 
 ## Retention and erasure (per project)
 
@@ -53,6 +70,10 @@ Delivered only for projects the user can see (admins: all); max 5 simultaneous s
 | `POST /projects/:id/retention/purge` | `project:edit` + edit access | purges messages older than the policy, rebuilds derived data; 400 if no policy |
 | `POST /projects/:id/erase-data` | `project:delete` (admins) | body `{confirmProjectName}` must equal the project name; irreversible; audited |
 
+## Removed (2026-10-11, ADR-007)
+
+`GET/POST /webhooks/whatsapp`, `/projects/:id/whatsapp-sources`, `POST /projects/:id/chat/upload`, `GET /projects/:id/chat/uploads`, `/auto-import/*`, `/google/*`. These paths now answer 404.
+
 ## Assistant service (port 8100, proxied at `/assistant` by the dev frontend)
 
 `POST /assistant/chat`, `POST /assistant/confirm`, `POST /assistant/cancel`, `GET /assistant/pending`, `POST /assistant/feedback`, `POST /assistant/voice`,
@@ -61,3 +82,4 @@ Delivered only for projects the user can see (admins: all); max 5 simultaneous s
 ## AI engine additions (internal, token-protected when `AI_ENGINE_TOKEN` is set)
 
 `DELETE /ai/index/{project_id}` drops a project's in-memory search index (used by purge/erase). `analyze-messages` now also returns `qa`, `sentiment` and `periodic`.
+`POST /ai/parse` was removed (the backend no longer parses exports). The WhatsApp-format parser and the .txt file endpoints that remain in the engine are offline evaluation/annotation tooling for the benchmark datasets; the product never calls them.

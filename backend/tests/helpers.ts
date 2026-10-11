@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import request from 'supertest';
 import { createApp } from '../src/app';
 import { prisma } from '../src/db';
@@ -31,8 +32,40 @@ export async function createUser(ctx: Ctx, admin: Session, role: string, email: 
   return login(ctx, email, 'correct-horse-battery');
 }
 
-export const uploadChat = (ctx: Ctx, auth: Record<string, string>, projectId: string, text: string | Buffer, name = 'chat.txt') =>
-  request(ctx.app).post(`/api/projects/${projectId}/chat/upload`).set(auth).attach('file', Buffer.from(text), name);
+/**
+ * Seeds a project's conversation the way the in-app chat stores it (participants + ChatMessage rows on the in-app carrier upload),
+ * then asks for a re-analysis. Fixtures are written as "[dd/mm/yyyy, h:mm AM] Name: text" lines; re-seeding the same lines adds nothing.
+ * Returns { status, body: { jobId } } like the HTTP call, so tests read naturally.
+ */
+export async function seedChat(ctx: Ctx, auth: Record<string, string>, projectId: string, text: string) {
+  const line = /^\[(\d{2})\/(\d{2})\/(\d{4}), (\d{1,2}):(\d{2}) (AM|PM)\] ([^:]+): ([\s\S]*)$/;
+  const msgs: { ts: Date; sender: string; text: string }[] = [];
+  for (const raw of text.split('\n')) {
+    const m = line.exec(raw);
+    if (m) {
+      const h = (Number(m[4]) % 12) + (m[6] === 'PM' ? 12 : 0);
+      msgs.push({ ts: new Date(Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1]), h, Number(m[5]))), sender: m[7].trim(), text: m[8] });
+    } else if (raw.trim() && msgs.length) msgs[msgs.length - 1].text += '\n' + raw;     // continuation line
+  }
+  const user = await prisma.user.findFirstOrThrow({ orderBy: { createdAt: 'asc' } });
+  const sha = (x: string) => crypto.createHash('sha256').update(x).digest('hex');
+  const carrierSha = sha(`inapp:${projectId}`);
+  const upload = await prisma.chatUpload.upsert({ where: { projectId_sha256: { projectId, sha256: carrierSha } }, update: {},
+    create: { projectId, uploadedById: user.id, fileName: 'In-app chat', storageKey: 'inapp', sha256: carrierSha, sizeBytes: 0, status: 'COMPLETED' } });
+  const seen = new Map<string, number>();
+  let seq = ((await prisma.chatMessage.aggregate({ where: { projectId }, _max: { seq: true } }))._max.seq ?? -1) + 1;
+  for (const m of msgs) {
+    const key = `${m.ts.toISOString()}|${m.sender}|${m.text}`;
+    const n = (seen.get(key) ?? 0) + 1; seen.set(key, n);
+    const id = `${projectId}:seed_${sha(`${key}|${n}`).slice(0, 24)}`;
+    if (await prisma.chatMessage.findUnique({ where: { id }, select: { id: true } })) continue;
+    const p = await prisma.chatParticipant.upsert({ where: { projectId_displayName: { projectId, displayName: m.sender } }, update: {}, create: { projectId, displayName: m.sender } });
+    await prisma.chatMessage.create({ data: { id, projectId, uploadId: upload.id, seq: seq++, senderId: p.id, timestamp: m.ts, originalText: m.text, text: m.text,
+      urls: m.text.match(/https?:\/\/\S+/g) ?? [] } });
+  }
+  const r = await request(ctx.app).post(`/api/projects/${projectId}/chat/reanalyze`).set(auth);
+  return { status: r.status, body: r.body };
+}
 
 export async function waitJob(ctx: Ctx, auth: Record<string, string>, jobId: string) {
   await ctx.queue.idle();

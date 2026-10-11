@@ -12,8 +12,11 @@ import { config } from '../config';
  * works by polling if the stream drops (the frontend falls back to refetching).
  */
 export interface LiveEvent {
-  type: 'analysis.progress' | 'analysis.completed' | 'analysis.failed' | 'notification.created';
-  projectId: string;
+  type: 'analysis.progress' | 'analysis.completed' | 'analysis.failed' | 'notification.created' | 'chat.message' | 'chat.room' | 'chat.typing';
+  projectId: string;                  // '' for a direct-message room
+  roomId?: string;                    // chat events carry ids only; the client fetches the text
+  userIds?: string[];                 // when set, ONLY these users receive the event (room members); no project check applies
+  actorId?: string;                   // chat.typing: who is typing (the client shows the member's name)
   jobId?: string;
   progress?: number;
   stage?: string;

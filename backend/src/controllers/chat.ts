@@ -1,35 +1,13 @@
-import crypto from 'node:crypto';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { config } from '../config';
 import { prisma } from '../db';
 import { authenticate, projectAccess, requirePermission, viaEntity } from '../middlewares/auth';
-import { audit, pageParams, upload, validateQuery } from '../middlewares/misc';
+import { audit, pageParams, validateQuery } from '../middlewares/misc';
 import { JobQueue } from '../queues';
 import { ai } from '../services/aiClient';
-import { encryptBuffer, sha256 } from '../utils/crypto';
-import { extractFirstTxt, ZipError } from '../utils/zipText';
 import { naive } from '../utils/time';
 import { AppError, asyncHandler, badRequest, notFound } from '../utils/errors';
-
-const MAX_EXPORT_BYTES = 200 * 1024 * 1024;     // cap on the text extracted from an uploaded .zip (decompression-bomb guard)
-const HEADER = /^‎?(\[\s*\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4},?\s+\d{1,2}[:.]\d{2}|\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4},?\s+\d{1,2}[:.]\d{2}[^\n]{0,12}?\s[-–])/m;
-
-/** Cheap pre-check before storing anything: plain text, not binary, contains WhatsApp-style message headers. */
-export function looksLikeWhatsApp(buf: Buffer): boolean {
-  if (!buf.length) return false;
-  const head = buf.subarray(0, 256 * 1024);
-  let text: string;
-  if (head[0] === 0xff && head[1] === 0xfe) text = head.toString('utf16le');
-  else {
-    if (head.includes(0)) return false;
-    text = head.toString('utf8');
-  }
-  return HEADER.test(text.replace(/[‎‏ ﻿]/g, (c) => (c === ' ' ? ' ' : '')));
-}
 
 const jobView = (j: any) => ({ id: j.id, projectId: j.projectId, uploadId: j.uploadId, status: j.status, stage: j.stage, progress: j.progress,
   error: j.error, createdAt: j.createdAt, startedAt: j.startedAt, finishedAt: j.finishedAt });
@@ -43,41 +21,6 @@ export function chatRouter(queue: JobQueue) {
   const r = Router();
   r.use(authenticate);
 
-  r.post('/projects/:id/chat/upload', requirePermission('chat:upload'), projectAccess('edit'), upload().single('file'),
-    asyncHandler(async (req, res) => {
-      const pid = req.params.id;
-      if (!req.file) throw badRequest('Attach a WhatsApp .txt export in the "file" field');
-      let buf = req.file.buffer;
-      let uploadedName = req.file.originalname;
-      if (/\.zip$/i.test(uploadedName)) {                          // WhatsApp's "Export chat" produces a .zip when media is included: read the chat text out of it
-        try { const x = extractFirstTxt(buf, MAX_EXPORT_BYTES); buf = x.data; uploadedName = path.basename(x.name); }
-        catch (e) { throw new AppError(422, 'INVALID_CHAT', e instanceof ZipError ? e.message : 'The ZIP could not be read'); }
-      }
-      if (!looksLikeWhatsApp(buf)) throw new AppError(422, 'INVALID_CHAT', 'This does not look like a WhatsApp chat export (.txt)');
-      const hash = sha256(buf);
-      const dup = await prisma.chatUpload.findUnique({ where: { projectId_sha256: { projectId: pid, sha256: hash } } });
-      if (dup) throw new AppError(409, 'DUPLICATE_UPLOAD', 'This chat appears to have already been imported.', { uploadId: dup.id });
-      const active = await prisma.analysisJob.findFirst({ where: { projectId: pid, status: { in: ['QUEUED', 'RUNNING'] } } });
-      if (active) throw new AppError(409, 'ANALYSIS_IN_PROGRESS', 'An analysis is already running for this project', { jobId: active.id });
-
-      const storageKey = crypto.randomUUID(); // never derived from the user-supplied name
-      await fs.mkdir(config().UPLOAD_DIR, { recursive: true });
-      await fs.writeFile(path.join(config().UPLOAD_DIR, storageKey), encryptBuffer(buf), { mode: 0o600 });
-      const safeName = path.basename(uploadedName).replace(/[^\w.\- ]/g, '_').slice(0, 120);
-      const up = await prisma.chatUpload.create({ data: { projectId: pid, uploadedById: req.user!.id, fileName: safeName, storageKey, sha256: hash,
-        sizeBytes: BigInt(buf.length), status: 'QUEUED', purgeAfter: new Date(Date.now() + config().UPLOAD_TTL_HOURS * 3_600_000) } });
-      const job = await prisma.analysisJob.create({ data: { projectId: pid, uploadId: up.id, status: 'QUEUED', stage: 'Uploading', progress: 5 } });
-      await queue.enqueue(job.id);
-      await audit(req, 'UPLOAD', { projectId: pid, entity: 'ChatUpload', entityId: up.id, meta: { bytes: buf.length } });
-      res.status(202).json({ jobId: job.id, uploadId: up.id, status: 'QUEUED' });
-    }));
-
-  r.get('/projects/:id/chat/uploads', projectAccess('view'), requirePermission('chat:view_raw'), asyncHandler(async (req, res) => {
-    const rows = await prisma.chatUpload.findMany({ where: { projectId: req.params.id }, orderBy: { createdAt: 'desc' },
-      select: { id: true, fileName: true, status: true, messageCount: true, newMessageCount: true, firstMessageAt: true, lastMessageAt: true, createdAt: true, errorMessage: true, parseReport: true } });
-    res.json({ items: rows });
-  }));
-
   r.get('/analysis/:jobId', viaEntity((id) => prisma.analysisJob.findUnique({ where: { id }, select: { projectId: true } }), 'view', 'jobId'),
     asyncHandler(async (req, res) => res.json(jobView(await prisma.analysisJob.findUniqueOrThrow({ where: { id: req.params.jobId } })))));
 
@@ -88,7 +31,7 @@ export function chatRouter(queue: JobQueue) {
 
   r.post('/projects/:id/chat/reanalyze', requirePermission('chat:upload'), projectAccess('edit'), asyncHandler(async (req, res) => {
     const pid = req.params.id;
-    if (!(await prisma.chatMessage.count({ where: { projectId: pid } }))) throw badRequest('Upload a chat first');
+    if (!(await prisma.chatMessage.count({ where: { projectId: pid } }))) throw badRequest('This project has no messages yet. Start a project group in Team chat.');
     const active = await prisma.analysisJob.findFirst({ where: { projectId: pid, status: { in: ['QUEUED', 'RUNNING'] } } });
     if (active) throw new AppError(409, 'ANALYSIS_IN_PROGRESS', 'An analysis is already running for this project', { jobId: active.id });
     const job = await prisma.analysisJob.create({ data: { projectId: pid, status: 'QUEUED', stage: 'Queued', progress: 5 } });
@@ -118,7 +61,7 @@ export function chatRouter(queue: JobQueue) {
       nextCursor: rows.length > limit ? page.at(-1)!.id : null });
   }));
 
-  /** Auditability: the exact WhatsApp messages (plus context) behind an extracted task. */
+  /** Auditability: the exact chat messages (plus context) behind an extracted task. */
   r.get('/tasks/:id/evidence', viaEntity((id) => prisma.task.findUnique({ where: { id }, select: { projectId: true } }), 'view'),
     requirePermission('chat:view_raw'), asyncHandler(async (req, res) => {
       const t = await prisma.task.findUniqueOrThrow({ where: { id: req.params.id } });

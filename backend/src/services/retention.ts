@@ -15,7 +15,7 @@ import { config } from '../config';
 import { prisma } from '../db';
 import { JobQueue } from '../queues';
 import { ai } from './aiClient';
-import { scheduleReanalysis } from './whatsapp';
+import { scheduleReanalysis } from './reanalysis';
 
 export interface PurgeResult {
   messagesDeleted: number;
@@ -43,6 +43,7 @@ async function wipeDerived(pid: string, tx: Omit<typeof prisma, '$connect' | '$d
 
 export async function purgeBefore(pid: string, cutoff: Date, queue?: JobQueue): Promise<PurgeResult> {
   const messages = await prisma.chatMessage.deleteMany({ where: { projectId: pid, timestamp: { lt: cutoff } } });
+  await prisma.roomMessage.deleteMany({ where: { room: { projectId: pid }, createdAt: { lt: cutoff } } });      // in-app chat copies
   const remaining = await prisma.chatMessage.count({ where: { projectId: pid } });
   let snapshots = 0, wiped = false;
   if (remaining === 0) {
@@ -67,16 +68,16 @@ export async function purgeBefore(pid: string, cutoff: Date, queue?: JobQueue): 
 }
 
 export async function eraseProjectData(pid: string): Promise<PurgeResult & { uploadFilesDeleted: number }> {
-  const uploads = await prisma.chatUpload.findMany({ where: { projectId: pid, storageKey: { notIn: ['', 'webhook'] } }, select: { id: true, storageKey: true } });
+  const uploads = await prisma.chatUpload.findMany({ where: { projectId: pid, storageKey: { notIn: ['', 'webhook', 'inapp'] } }, select: { id: true, storageKey: true } });
   for (const u of uploads) await fs.rm(path.join(config().UPLOAD_DIR, u.storageKey), { force: true });
   let messages = 0;
   await prisma.$transaction(async (tx) => {
     messages = (await tx.chatMessage.deleteMany({ where: { projectId: pid } })).count;
+    await tx.roomMessage.deleteMany({ where: { room: { projectId: pid } } });
     await wipeDerived(pid, tx as any);
     await tx.analysisJob.deleteMany({ where: { projectId: pid } });
     await tx.chatParticipant.deleteMany({ where: { projectId: pid } });
-    await tx.chatUpload.deleteMany({ where: { projectId: pid, storageKey: { not: 'webhook' } } });      // webhook sources keep their (empty) carrier upload
-    await tx.whatsappSource.updateMany({ where: { projectId: pid }, data: { messageCount: 0 } });
+    await tx.chatUpload.deleteMany({ where: { projectId: pid, storageKey: { not: 'inapp' } } });      // the in-app chat keeps its (empty) carrier upload
   }, { timeout: 120_000 });
   const dropped = await ai.dropIndex(pid);
   return { messagesDeleted: messages, remainingMessages: 0, snapshotsDeleted: 0, reportsDeleted: 0, notificationsDeleted: 0, humanEditedItemsRetained: 0, derivedWiped: true,

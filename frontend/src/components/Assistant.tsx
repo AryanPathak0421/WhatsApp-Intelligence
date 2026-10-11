@@ -17,7 +17,7 @@ const SOURCE_LABEL: Record<string, string> = {
   application_data: 'live application data', documents: 'cited documents', model_general_knowledge_unverified: 'general knowledge (unverified)',
 };
 
-const call = <T,>(method: 'get' | 'post', url: string, data?: unknown) => api.request<T>({ method, url, data, baseURL: '/' }).then((r) => r.data);
+const call = <T,>(method: 'get' | 'post', url: string, data?: unknown) => api.request<T>({ method, url, data, baseURL: '/', timeout: 600_000 }).then((r) => r.data);
 
 export default function Assistant({ projectId }: { projectId?: string }) {
   const [open, setOpen] = useState(false);

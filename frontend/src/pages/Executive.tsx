@@ -1,7 +1,6 @@
 import { AlertOctagon, FolderKanban, Gauge, Hourglass, Users2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SimpleBars } from '../components/charts';
-import ChatUploadCard from '../components/ChatUploadCard';
 import { Badge, Card, CardHeader, EmptyState, ErrorState, Kpi, PageHeader, ProgressBar, SeverityBadge, Skeleton, StatusBadge, Td, Th } from '../components/ui';
 import { fmtDate, pct } from '../lib/format';
 import { isShaky } from '../lib/types';
@@ -26,11 +25,10 @@ export default function Executive() {
           <Kpi label="Open high risks" value={data.topRisks.length} tone={data.topRisks.length ? 'bad' : 'ok'} /></>}
       </div>
 
-      <ChatUploadCard />
 
       <Card className="mt-5 overflow-hidden">
         <CardHeader title="Project comparison" sub="Spot problem projects quickly — progress and health come from the latest analysis." />
-        {isLoading ? <div className="p-5"><Skeleton className="h-32" /></div> : !data.projects.length ? <EmptyState title="No projects yet" hint="Create a project and upload a WhatsApp export to get started." action={<Link to="/projects" className="text-sm text-brand-600 hover:underline">Go to projects</Link>} /> : (
+        {isLoading ? <div className="p-5"><Skeleton className="h-32" /></div> : !data.projects.length ? <EmptyState title="No projects yet" hint="Create a project, then start a project group in Team chat. Its conversation is analysed automatically." action={<Link to="/projects" className="text-sm text-brand-600 hover:underline">Go to projects</Link>} /> : (
           <div className="overflow-x-auto"><table className="w-full min-w-[820px]"><thead className="border-b bg-[var(--surface-2)]/50"><tr>
             <Th>Project</Th><Th>Client</Th><Th className="w-48">Progress</Th><Th>Health</Th><Th>Client pending</Th><Th>Overdue</Th><Th>Blocked</Th><Th>Open bugs</Th><Th>Due</Th></tr></thead>
             <tbody className="divide-y">{data.projects.map((p: any) => (

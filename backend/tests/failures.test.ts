@@ -6,7 +6,7 @@ import { loadConfig, resetConfigForTests } from '../src/config';
 import { prisma } from '../src/db';
 import { QUEUE_NAME, startWorker } from '../src/queues';
 import { PART1 } from './fixtures';
-import { bootstrapAdmin, createUser, makeCtx, resetDb, Session, uploadChat, waitJob } from './helpers';
+import { bootstrapAdmin, createUser, makeCtx, resetDb, seedChat, Session, waitJob } from './helpers';
 
 const REDIS = process.env.TEST_REDIS_URL ?? 'redis://localhost:56379';
 const saved = { ...process.env };
@@ -45,18 +45,16 @@ describe('failure handling (user-facing errors are sanitized)', () => {
     resetConfigForTests();
     const ctx = makeCtx();
     const pid = await newProject(ctx);
-    const r = await uploadChat(ctx, pm.auth, pid, PART1);
+    const r = await seedChat(ctx, pm.auth, pid, PART1);
     expect(r.status).toBe(202);
     const job = await waitJob(ctx, pm.auth, r.body.jobId);
     expect(job.status).toBe('FAILED');
     expect(job.error).toBe('Analysis service is unavailable');
     expect(JSON.stringify(job)).not.toMatch(/127\.0\.0\.1|ECONNREFUSED|axios|at /);
-    const up = await prisma.chatUpload.findFirstOrThrow({ where: { projectId: pid } });
-    expect(up.status).toBe('FAILED');
     // the project stays usable: a retry after the service returns works
     process.env.AI_ENGINE_URL = saved.AI_ENGINE_URL!;
     resetConfigForTests();
-    const re = await uploadChat(ctx, pm.auth, pid, PART1 + '[03/10/2026, 10:00 AM] Rahul: ok\n');
+    const re = await seedChat(ctx, pm.auth, pid, PART1 + '[03/10/2026, 10:00 AM] Rahul: ok\n');
     expect(re.status).toBe(202);
     expect((await waitJob(ctx, pm.auth, re.body.jobId)).status).toBe('COMPLETED');
     await ctx.queue.close();
@@ -67,7 +65,7 @@ describe('failure handling (user-facing errors are sanitized)', () => {
     resetConfigForTests();
     const ctx = makeCtx();
     const pid = await newProject(ctx);
-    const r = await uploadChat(ctx, pm.auth, pid, PART1);
+    const r = await seedChat(ctx, pm.auth, pid, PART1);
     const job = await waitJob(ctx, pm.auth, r.body.jobId);
     expect(job.status).toBe('FAILED');
     expect(job.error).toBe('Analysis failed');
@@ -79,18 +77,18 @@ describe('failure handling (user-facing errors are sanitized)', () => {
     resetConfigForTests();
     const ctx = makeCtx();
     const pid = await newProject(ctx);
-    const r = await uploadChat(ctx, pm.auth, pid, PART1);
+    const r = await seedChat(ctx, pm.auth, pid, PART1);
     const job = await waitJob(ctx, pm.auth, r.body.jobId);
     expect(job.status).toBe('FAILED');
     expect(['Analysis timed out', 'Analysis service is unavailable']).toContain(job.error);
     await ctx.queue.close();
   });
 
-  it('refuses a second upload while one is analyzing', async () => {
+  it('refuses a second analysis while one is running', async () => {
     const ctx = makeCtx();
     const pid = await newProject(ctx);
     await prisma.analysisJob.create({ data: { projectId: pid, status: 'RUNNING', stage: 'Analyzing project', progress: 45 } });
-    const r = await uploadChat(ctx, pm.auth, pid, PART1);
+    const r = await seedChat(ctx, pm.auth, pid, PART1);
     expect(r.status).toBe(409);
     expect(r.body.error.code).toBe('ANALYSIS_IN_PROGRESS');
     await ctx.queue.close();
@@ -104,7 +102,7 @@ describe('failure handling (user-facing errors are sanitized)', () => {
 });
 
 describe('BullMQ queue (real Redis)', () => {
-  it('processes an upload through Redis + a separate worker', async () => {
+  it('processes an analysis through Redis + a separate worker', async () => {
     const probe = new IORedis(REDIS, { maxRetriesPerRequest: 1, retryStrategy: () => null });
     try { await probe.ping(); } catch { probe.disconnect(); console.warn('Redis unavailable - skipping BullMQ test'); return; }
     process.env.QUEUE_MODE = 'bullmq';
@@ -114,7 +112,7 @@ describe('BullMQ queue (real Redis)', () => {
     const w = startWorker(1);
     try {
       const pid = await newProject(ctx);
-      const r = await uploadChat(ctx, pm.auth, pid, PART1);
+      const r = await seedChat(ctx, pm.auth, pid, PART1);
       expect(r.status).toBe(202);
       let job: any;
       for (let i = 0; i < 120; i++) {
