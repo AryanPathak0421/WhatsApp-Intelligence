@@ -4,9 +4,9 @@
   "private": true,
   "main": "dist/src/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "prisma generate && tsc -p tsconfig.json",
-    "start": "node dist/src/index.js",
+    "dev": "node api.js && tsx watch src/index.ts",
+    "build": "node api.js && prisma generate && tsc -p tsconfig.json",
+    "start": "node api.js && node dist/src/index.js",
     "worker": "node dist/src/workers/index.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
