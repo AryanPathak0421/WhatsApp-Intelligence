@@ -1,7 +1,6 @@
 node_modules/
 .venv/
 __pycache__/
-.env
 data/
 *.pyc
 dist/
@@ -10,7 +9,6 @@ uploads/
 deploy/certs/
 deploy/certs-le/
 backups/
-.env
 private-data/
 
 # --- added for the first commit ---
@@ -27,3 +25,8 @@ feedback.jsonl
 .DS_Store
 *.tsbuildinfo
 coverage/
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
+config.bat
